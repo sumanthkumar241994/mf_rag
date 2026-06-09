@@ -1,10 +1,15 @@
 from doctest import Example
 from sqlalchemy import text
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic_settings.main import re
 from app.core.config import settings
-from app.core.middleware import register_tracing_middleware, register_logging_middleware
+from app.core.middleware import (
+    register_tracing_middleware, 
+    register_logging_middleware,
+    register_authentication_middleware,
+    register_session_middleware
+)
 from app.core.database import AsyncSessionLocal, engine
 from app.api.dependencies import DBSession
 from app.observability import setup_logging
@@ -38,13 +43,16 @@ def create_application() -> FastAPI:
     setup_logging()
     register_tracing_middleware(app)
     register_logging_middleware(app)
+    register_session_middleware(app)
+    register_authentication_middleware(app)
 
     return app
 
 app = create_application()
 
 @app.get("/health")
-async def health_check(db: DBSession):
+async def health_check(request: Request):
+    logger.info(f"user: {request.state.customer_uid} and session: {request.state.session}")
     return {"status": "ok"}
 
 

@@ -1,2 +1,4 @@
 from .logging import register_logging_middleware
 from .tracing import register_tracing_middleware
+from .authentication import register_authentication_middleware
+from .session import register_session_middleware
