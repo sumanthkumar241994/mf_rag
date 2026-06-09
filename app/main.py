@@ -1,69 +1,51 @@
-from fastapi import FastAPI, Query
-from typing import Annotated
-from enum import Enum
-from pydantic import BaseModel
-from pydantic import AfterValidator
+from doctest import Example
+from sqlalchemy import text
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from pydantic_settings.main import re
+from app.core.config import settings
+from app.core.middleware import register_tracing_middleware, register_logging_middleware
+from app.core.database import AsyncSessionLocal
+from app.api.dependencies import DBSession
+from app.observability import setup_logging
+import logging
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
 
-@app.get('/user/me')
-async def read_user_me():
-    return {"message": "I am an fast api application"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """startup and shutdown events"""
+    try:
+        async with AsyncSessionLocal.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+            logger.info("Postgres connection established")
+    except Exception as ex:
+        logger.error("Database connection failed")
+        raise
 
-@app.get('/user/{user_id}')
-async def read_user(user_id: str):
-    return {"user_id": user_id}
+    yield
+    await DBSession.dispose()
+    print("Shutting down...")
 
-class ModelName(int, Enum):
-    alexnet = 1
-    resnet = 2
-    lenet = 3
+def create_application() -> FastAPI:
+    app = FastAPI(lifespan=lifespan, 
+                title=settings.APP_NAME,
+                description=settings.APP_DESCRIPTION, 
+                version=settings.APP_VERSION, 
+                docs_url=settings.APP_DOCS_URL, 
+                redoc_url=settings.APP_REDOC_URL
+                )
+    setup_logging()
+    register_tracing_middleware(app)
+    register_logging_middleware(app)
 
-@app.get('/models/{name}')
-async def model_name(name: ModelName):
-    if name is ModelName.alexnet:
-        return {"model": name, "application": "Used for Purpose X"}
-    elif name is ModelName.resnet:
-        return {"model": name, "application": "Used for Purpose Y"}
-    elif name is ModelName.lenet:
-        return {"model": name, "application": "Used for purpose Z"}
-    
+    return app
 
-@app.get('/file/{file_path:path}')
-async def read_file_path(file_path: str):
-    return {"file_path": file_path}
+app = create_application()
 
-db_items = [{"item1": "Cooker"}, {"item2": "laptop"}, {"item3":"mobile"},{"item4": "charger"}]
-@app.get('/items/')
-async def read_db_items(skip: int = 1 , limit: int = 10):
-    return db_items[skip: skip+limit]
-
-
-@app.get('/item/')
-async def read_db_item(item: str, q: str| None=None):
-    if q:
-        return {"item": item, "q": q}
-    return {"item": item}
-
-
-@app.get('/users/{user_id}/items/{item_id}')
-def read_user_items(user_id: int, item_id: str, q: str | None=None, short: bool | None=None):
-    item = {"user":user_id,"item": item_id}
-    if q:
-        item.update({"q": q})
-    if short:
-        item.update({"short": short})
-    
-
-    return item
-    
-class Item(BaseModel):
-    name: str
-    description: str | None = None
-    price: float
-    tax: float | None = None
+@app.get("/health")
+async def health_check(db: DBSession):
+    return {"status": "ok"}
 
 
-@app.post('/items/')
-def create_item(item: Item):
-    return item
+
