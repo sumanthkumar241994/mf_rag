@@ -1,1 +1,1 @@
-from .session import AsyncSessionLocal
+from .session import AsyncSessionLocal, engine

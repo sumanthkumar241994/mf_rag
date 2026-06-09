@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from pydantic_settings.main import re
 from app.core.config import settings
 from app.core.middleware import register_tracing_middleware, register_logging_middleware
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.api.dependencies import DBSession
 from app.observability import setup_logging
 import logging
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
         raise
 
     yield
-    await DBSession.dispose()
+    await engine.dispose()
     print("Shutting down...")
 
 def create_application() -> FastAPI:
