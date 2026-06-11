@@ -17,6 +17,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# import debugpy
+
+# debugpy.listen(("0.0.0.0", 5679))
+# print("⏳ Waiting for debugger to attach...")
+# debugpy.wait_for_client()  # Execution will pause here until debugger is attached
+# print("✅ Debugger Attached. Running Falcon App...")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """startup and shutdown events"""
