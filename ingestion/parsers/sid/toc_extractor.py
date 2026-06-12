@@ -1,96 +1,90 @@
 import re
 
-from ingestion.models import ParsedDocument
+from ingestion.models import ParsedDocument, TOCExtractionResult
+
+
+from .constants import (MIN_TOC_LINES_PER_PAGE, MULTIPLE_SPACE_PATTERN,
+    SECTION_PREFIX_PATTERN, TOC_ENTRY_END_PATTERN,TOC_LINE_PATTERN,
+    TOC_SCAN_LIMIT
+)
 
 
 class SIDTOCExtractor:
+    def extract(self, document: ParsedDocument) -> TOCExtractionResult:
+        toc_titles: list[str] = []
+        toc_start_page: int | None = None
+        toc_end_page: int | None = None
 
-    TOC_PAGE_SCAN_LIMIT = 15
+        for page in document.pages[:TOC_SCAN_LIMIT]:
+            toc_entries = self._extract_toc_entries(page.content)
 
-    TOC_LINE_PATTERN = re.compile(
-        r"^(.*?)\s*\.{2,}\s*(\d+)\s*$"
-    )
-
-    SECTION_PREFIX_PATTERN = re.compile(
-        r"^([A-Z]|[IVXLCDM]+)[\.\)]\s+",
-        re.IGNORECASE,
-    )
-
-    def extract(
-        self,
-        document: ParsedDocument,
-    ) -> list[str]:
-
-        sections: list[str] = []
-        seen: set[str] = set()
-
-        for page in document.pages[: self.TOC_PAGE_SCAN_LIMIT]:
-
-            lines = page.content.splitlines()
-
-            toc_hits = 0
-
-            for line in lines:
-
-                line = line.strip()
-
-                if self.TOC_LINE_PATTERN.search(line):
-                    toc_hits += 1
-
-            # probably not a TOC page
-            if toc_hits < 3:
+            if  len(toc_entries) < MIN_TOC_LINES_PER_PAGE:
                 continue
 
-            for line in lines:
+            if toc_start_page is None:
+                toc_start_page = page.page_number
 
-                title = self._extract_title(line)
+            toc_end_page = page.page_number
+
+            for entry in toc_entries:
+                title = self._extract_title(entry)
 
                 if not title:
                     continue
 
-                normalized = title.upper()
+                toc_titles.append(title)
 
-                if normalized in seen:
-                    continue
-
-                seen.add(normalized)
-
-                sections.append(title)
-
-        return sections
-
-    def _extract_title(
-        self,
-        line: str,
-    ) -> str | None:
-
-        line = line.strip()
-
-        if not line:
-            return None
-
-        match = self.TOC_LINE_PATTERN.match(line)
-
-        if not match:
-            return None
-
-        title = match.group(1)
-
-        # remove roman numerals / A. / B.
-        title = self.SECTION_PREFIX_PATTERN.sub(
-            "",
-            title,
+        toc_titles = list(
+            dict.fromkeys(toc_titles)
         )
 
-        title = re.sub(
-            r"\s+",
-            " ",
-            title,
+        return TOCExtractionResult(
+            found=len(toc_titles) > 0,
+            titles=toc_titles,
+            toc_start_page=toc_start_page,
+            toc_end_page=toc_end_page,
         )
+    
+    
+    def _extract_title(self, entry: str) -> str | None:
+        entry = entry.strip()
 
+        if not entry:
+            return None
+
+        if not TOC_LINE_PATTERN.match(entry):
+            return None
+
+        #Remove: ............. 25
+        title = re.sub(r"\.{3,}\s*\d+\s*$","",entry)
+        # Remove: A. B. I. II.
+        title = SECTION_PREFIX_PATTERN.sub("", title)
+        # Collapse whitespace
+        title = MULTIPLE_SPACE_PATTERN.sub(" ", title)
         title = title.strip()
 
+        # Ignore noise
         if len(title) < 5:
             return None
 
         return title
+
+    def _extract_toc_entries(self, content: str) -> list[str]:
+        entries: list[str] = []
+
+        lines = [
+            line.strip()
+            for line in content.splitlines()
+            if line.strip()
+        ]
+
+        current_parts: list[str] = []
+
+        for line in lines:
+            current_parts.append(line)
+
+            if TOC_ENTRY_END_PATTERN.search(line):
+                entries.append(" ".join(current_parts))
+                current_parts = []
+
+        return entries

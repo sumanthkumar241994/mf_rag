@@ -1,60 +1,52 @@
 from rapidfuzz import fuzz
 
-from ingestion.models.section_marker import SectionMarker
+from ingestion.models import SectionMarker
+from .constants import FUZZ_MIN_CONFIDENCE
 
 
 class SIDHeadingVerifier:
-
-    MIN_CONFIDENCE = 85
-
-    def verify(
-        self,
-        toc_titles: list[str],
-        markers: list[SectionMarker],
-    ) -> list[SectionMarker]:
-
+    def verify(self, toc_titles: list[str], markers: list[SectionMarker]) -> list[SectionMarker]:
         if not toc_titles:
             return markers
 
-        verified_markers: list[SectionMarker] = []
+        best_matches: dict[ str, tuple[int, SectionMarker]] = {}
 
-        for marker in markers:
+        for toc_title in toc_titles:
+            normalized_toc = self._normalize(toc_title)
 
-            best_match_score = 0
+            best_score = 0
+            best_marker = None
 
-            best_toc_title = None
-
-            for toc_title in toc_titles:
-
-                score = fuzz.token_sort_ratio(
+            for marker in markers:
+                score = fuzz.token_sort_ratio( 
+                    normalized_toc,
                     self._normalize(marker.title),
-                    self._normalize(toc_title),
                 )
 
-                if score > best_match_score:
-                    best_match_score = score
-                    best_toc_title = toc_title
+                if score > best_score:
+                    best_score = score
+                    best_marker = marker
 
-            if best_match_score < self.MIN_CONFIDENCE:
-                continue
+            if best_marker and best_score >=FUZZ_MIN_CONFIDENCE:
+                existing = best_matches.get(normalized_toc)
 
-            verified_markers.append(
-                SectionMarker(
-                    title=best_toc_title,
-                    page_number=marker.page_number,
-                    line_number=marker.line_number,
-                )
-            )
+                if existing is None or best_score > existing[0]:
+                    best_matches[normalized_toc] = (
+                        best_score,
+                        SectionMarker(
+                            title=toc_title,
+                            page_number=best_marker.page_number,
+                            line_number=best_marker.line_number,
+                        ),
+                    )
 
+        verified_markers = [value[1] for value in best_matches.values()]
+        verified_markers.sort( key=lambda marker: (marker.page_number,marker.line_number))
         return verified_markers
+        
 
-    def _normalize(
-        self,
-        text: str,
-    ) -> str:
-
+    def _normalize(self, text: str) -> str:
         text = text.upper()
-
         text = (
             text
             .replace("?", "")
@@ -62,7 +54,6 @@ class SIDHeadingVerifier:
             .replace(".", "")
             .replace(",", "")
         )
-
         text = " ".join(text.split())
 
         return text

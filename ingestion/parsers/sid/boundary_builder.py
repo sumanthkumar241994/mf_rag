@@ -1,53 +1,40 @@
-from ingestion.models import SectionBoundary, ParsedDocument, SectionMarker
+from ingestion.models import ParsedDocument, SectionBoundary, SectionMarker
 
-class SIDSectionBoundaryBuilder:
 
-    def build(
-        self,
-        markers: list[SectionMarker],
-        document: ParsedDocument,
-    ) -> list[SectionBoundary]:
+class SectionBoundaryBuilder:
+    def build(self, markers: list[SectionMarker], document: ParsedDocument) -> list[SectionBoundary]:
+        if not markers:
+            return []
 
-        boundaries = []
+        markers = sorted(markers,key=lambda marker: (marker.page_number,marker.line_number))
+        boundaries: list[SectionBoundary] = []
 
-        markers = sorted(
-            markers,
-            key=lambda m: (
-                m.page_number,
-                m.line_number,
-            ),
-        )
+        for index, marker in enumerate(markers):
+            start_page = marker.page_number
+            start_line = marker.line_number
 
-        for idx, marker in enumerate(markers):
+            if index < len(markers) - 1:
+                next_marker = markers[index + 1]
+                end_page = next_marker.page_number
+                end_line = next_marker.line_number - 1
 
-            if idx < len(markers) - 1:
-
-                next_marker = markers[idx + 1]
-
-                boundaries.append(
-                    SectionBoundary(
-                        title=marker.title,
-                        normalized_title="",
-                        start_page=marker.page_number,
-                        start_line=marker.line_number,
-                        end_page=next_marker.page_number,
-                        end_line=next_marker.line_number - 1,
-                    )
-                )
+                # Same page edge case
+                if  end_page == start_page and end_line < start_line:
+                    end_line = start_line
 
             else:
-
                 last_page = document.pages[-1]
+                end_page = last_page.page_number
+                end_line = len(last_page.content.splitlines()) - 1
 
-                boundaries.append(
-                    SectionBoundary(
-                        title=marker.title,
-                        normalized_title="",
-                        start_page=marker.page_number,
-                        start_line=marker.line_number,
-                        end_page=last_page.page_number,
-                        end_line=999999,
-                    )
+            boundaries.append(
+                SectionBoundary(
+                    title=marker.title,
+                    start_page=start_page,
+                    start_line=start_line,
+                    end_page=end_page,
+                    end_line=end_line,
                 )
+            )
 
         return boundaries
