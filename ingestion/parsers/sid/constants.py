@@ -18,4 +18,9 @@ HEADING_PATTERNS = [
         re.compile(r"^(PART\s+[IVXLCDM]+.*)$", re.IGNORECASE),
     ]
 
+PAGE_NUMBER_PATTERNS = [
+    re.compile(r"^Page\s*\|?\s*\d+$", re.IGNORECASE),
+    re.compile(r"^\d+$")
+]
+
 
