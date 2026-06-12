@@ -1,29 +1,52 @@
 import re
-from ingestion.models import ParsedDocument, SectionMarker
+
+from ingestion.models import (
+    SectionMarker, ParsedDocument
+)
+
 
 class SIDHeadingExtractor:
-    HEADING_PATTERN = re.compile(
-        r"^([IVXLCDM]+)\.?\s+(.+)$",
-        re.IGNORECASE,
-    )
 
-    def extract(self, document: ParsedDocument) -> list[SectionMarker]:
-        markers : list[SectionMarker] = []
+    HEADING_PATTERNS = [
+        re.compile(
+            r"^[A-Z]\.\s+(.+)$"
+        ),
+        re.compile(
+            r"^[IVXLCDM]+\.\s+(.+)$"
+        ),
+    ]
+
+    def extract(
+        self,
+        document: ParsedDocument,
+    ) -> list[SectionMarker]:
+
+        markers = []
 
         for page in document.pages:
-            for line in page.content.splitlines():
+
+            lines = page.content.splitlines()
+
+            for line_number, line in enumerate(lines):
+
                 line = line.strip()
 
-                match = self.HEADING_PATTERN.match(line)
-
-                if not match:
+                if not line:
                     continue
 
-                markers.append(
-                    SectionMarker(
-                        title=match.group(2).strip(),
-                        page_number=page.page_number
+                for pattern in self.HEADING_PATTERNS:
+
+                    match = pattern.match(line)
+
+                    if not match:
+                        continue
+
+                    markers.append(
+                        SectionMarker(
+                            title=match.group(1).strip(),
+                            page_number=page.page_number,
+                            line_number=line_number,
+                        )
                     )
-                )
 
         return markers

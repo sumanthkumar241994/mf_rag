@@ -4,4 +4,5 @@ from dataclasses import dataclass
 class SectionMarker:
     title: str
     page_number: int
+    line_number: int
     

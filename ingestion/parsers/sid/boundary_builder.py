@@ -1,32 +1,53 @@
-from re import S
-
-from fastapi._compat.v2 import normalize_name
-from ingestion.models import SectionBoundary, SectionMarker
+from ingestion.models import SectionBoundary, ParsedDocument, SectionMarker
 
 class SIDSectionBoundaryBuilder:
 
-    def build(self, total_pages: int, markers: list[SectionMarker]) -> list[SectionBoundary]:
-        boundaries: list[SectionBoundary] = []
+    def build(
+        self,
+        markers: list[SectionMarker],
+        document: ParsedDocument,
+    ) -> list[SectionBoundary]:
 
-        ordered_markers = sorted(markers, key= lambda x:x.page_number)
+        boundaries = []
 
-        for index, marker in enumerate(ordered_markers):
-            start_page = marker.page_number
+        markers = sorted(
+            markers,
+            key=lambda m: (
+                m.page_number,
+                m.line_number,
+            ),
+        )
 
-            if index < len(ordered_markers) - 1:
-                end_page = (
-                    ordered_markers[index+1].page_number-1
+        for idx, marker in enumerate(markers):
+
+            if idx < len(markers) - 1:
+
+                next_marker = markers[idx + 1]
+
+                boundaries.append(
+                    SectionBoundary(
+                        title=marker.title,
+                        normalized_title="",
+                        start_page=marker.page_number,
+                        start_line=marker.line_number,
+                        end_page=next_marker.page_number,
+                        end_line=next_marker.line_number - 1,
+                    )
                 )
+
             else:
-                end_page= total_pages
 
-            boundaries.append(
-                SectionBoundary(
-                    title=marker.title,
-                    normalized_title="",
-                    start_page=start_page,
-                    end_page=end_page
+                last_page = document.pages[-1]
+
+                boundaries.append(
+                    SectionBoundary(
+                        title=marker.title,
+                        normalized_title="",
+                        start_page=marker.page_number,
+                        start_line=marker.line_number,
+                        end_page=last_page.page_number,
+                        end_line=999999,
+                    )
                 )
-            )
-        
+
         return boundaries

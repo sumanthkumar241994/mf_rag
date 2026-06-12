@@ -3,34 +3,42 @@ from ingestion.models import ParsedDocument, ParsedSchemeDocument
 
 from .boundary_builder import SIDSectionBoundaryBuilder
 from .heading_extractor import SIDHeadingExtractor
+from .heading_verifier import SIDHeadingVerifier
 from .metadata_extractor import SIDMetaDataExtractor
 from .section_extractor import SIDSectionExtractor
-from .toc_extractor import SIDTOCExractor
+from .toc_extractor import SIDTOCExtractor
 
 class SIDParser:
 
     def __init__(self):
-        self.toc_extractor = SIDTOCExractor()
+        self.toc_extractor = SIDTOCExtractor()
         self.heading_extractor = SIDHeadingExtractor()
+        self.heading_verifier = SIDHeadingVerifier()
         self.boundary_builder = SIDSectionBoundaryBuilder()
         self.section_extractor = SIDSectionExtractor()
         self.metadata_extractor = SIDMetaDataExtractor()
 
     def parse(self, document: ParsedDocument) -> ParsedSchemeDocument:
-        markers = self.toc_extractor.extract(document=document)
 
-        if not markers:
-            markers = self.heading_extractor.extract(document=document)
+        toc_titles = self.toc_extractor.extract(document)
+
+        markers = self.heading_extractor.extract(document)
+
+        if toc_titles:
+            markers = self.heading_verifier.verify(
+                            toc_titles=toc_titles,
+                            markers=markers,
+                    )
         
         boundaries = self.boundary_builder.build(
-            total_pages=document.page_count, 
-            markers=markers
-            )
-        
+                            markers=markers,
+                            document=document,
+                        )
+
         sections = self.section_extractor.extract(
-            document=document,
-            boundaries=boundaries
-            )
+                    document=document,
+                    boundaries=boundaries,
+                )
         
         metadata = self.metadata_extractor.extract(document=document)
 
