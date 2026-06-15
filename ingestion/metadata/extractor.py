@@ -23,6 +23,6 @@ class MetaDataExtractor:
     
 
     def _build_metadata_text(self, document: ParsedDocument) -> str:
-        pages = [page for page in document.pages[:self.PAGE_SCAN_LIMIT]]
+        pages = [page.content for page in document.pages[:self.PAGE_SCAN_LIMIT]]
         return "\n".join(pages)
 

@@ -1,8 +1,15 @@
 from ingestion.models import DocumentSection, ParsedDocument, SectionBoundary
 from .constants import PAGE_NUMBER_PATTERNS
 
+from ingestion.layout.detector import LayoutDetector
+from ingestion.layout.cleaner import LayoutCleaner
+
 class SIDSectionExtractor:
-    def extract(self, document: ParsedDocument, boundaries: list[SectionBoundary]) -> list[DocumentSection]:
+
+    def __init__(self) -> None:
+        self.cleaner = LayoutCleaner()
+
+    def extract(self, document: ParsedDocument, boundaries: list[SectionBoundary], layout: LayoutDetector) -> list[DocumentSection]:
         sections: list[DocumentSection] = []
         page_map = {page.page_number: page for page in document.pages}
 
@@ -20,6 +27,11 @@ class SIDSectionExtractor:
                 content_parts.extend(selected_lines)
 
             content = "\n".join(content_parts).strip()
+
+            content = self.cleaner.clean(content=content, layout=layout)
+
+            if not content:
+                continue
 
             sections.append(
                 DocumentSection(
@@ -51,9 +63,9 @@ class SIDSectionExtractor:
 
             if not line:
                 continue
-
-            if PAGE_NUMBER_PATTERNS.match(line):
-                continue
+            for pattern in PAGE_NUMBER_PATTERNS:
+                if pattern.match(line):
+                    continue
 
             cleaned.append(line)
 

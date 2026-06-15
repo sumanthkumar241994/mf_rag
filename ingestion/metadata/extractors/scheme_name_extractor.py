@@ -28,13 +28,13 @@ class SchemeNameExtractor:
         return self._fallback_extract(lines)
     
 
-    def _clean_lines(text: str) -> list[str]:
+    def _clean_lines(self, text: str) -> list[str]:
         return [
             line.strip() for line in text.splitlines() if line.strip()
         ]
 
     def _extract_after_section(self, lines: list[str]) -> str | None:
-        for index, line in lines:
+        for index, line in enumerate(lines):
             if not self.SECTION_PATTERN.search(line):
                 continue
 

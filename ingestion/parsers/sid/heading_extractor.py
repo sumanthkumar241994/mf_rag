@@ -40,7 +40,7 @@ class SIDHeadingExtractor:
         return markers
 
     def _extract_heading(self, line: str) -> str | None:
-        for pattern in self.HEADING_PATTERNS:
+        for pattern in HEADING_PATTERNS:
             match = pattern.match(line)
 
             if not match:

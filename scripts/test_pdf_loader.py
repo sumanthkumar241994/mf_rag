@@ -1,9 +1,18 @@
 from ingestion.loaders.pdf import PDFLoader
 from ingestion.parsers.sid import SIDParser
 from ingestion.metadata.extractor import MetaDataExtractor
+from ingestion.chunking.semantic_chunker import SemanticChunker
+from ingestion.chunking.chunk_normalizer import ChunkNormalizer
+from ingestion.chunking.chunk_hasher import ChunkHasher
 
-document = PDFLoader().load("/users/sumanth/downloads/1780464572018.pdf")
+document = PDFLoader().load("/users/sumanth/downloads/1781088432492.pdf")
 scheme_doc = SIDParser().parse(document=document)
 scheme_metadata = MetaDataExtractor().extract(document=document)
+chunks = SemanticChunker().chunk(scheme_doc)
+
+for chunks in chunks:
+    normalized_content=ChunkNormalizer().normalize(chunks.content)
+    chunk_hash = ChunkHasher().generate(content=normalized_content)
+    
 # print(document.page_count)
 # print(document.pages[0].content[:1000])

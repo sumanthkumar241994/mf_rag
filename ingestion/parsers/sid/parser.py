@@ -8,6 +8,8 @@ from .metadata_extractor import SIDMetaDataExtractor
 from .section_extractor import SIDSectionExtractor
 from .toc_extractor import SIDTOCExtractor
 
+from ingestion.layout.detector import LayoutDetector
+
 class SIDParser:
 
     def __init__(self):
@@ -17,6 +19,7 @@ class SIDParser:
         self.boundary_builder = SectionBoundaryBuilder()
         self.section_extractor = SIDSectionExtractor()
         self.metadata_extractor = SIDMetaDataExtractor()
+        self.layout_detector = LayoutDetector()
 
     def parse(self, document: ParsedDocument) -> ParsedSchemeDocument:
         toc_result = self.toc_extractor.extract(document)
@@ -37,8 +40,10 @@ class SIDParser:
             markers = self.heading_extractor.extract(document=document)
         # Build Section Boundaries
         boundaries = self.boundary_builder.build(markers=markers, document=document)
+
+        layout = self.layout_detector.detect(document)
         # Extract Sections
-        sections = self.section_extractor.extract(document=document, boundaries=boundaries)
+        sections = self.section_extractor.extract(document=document, boundaries=boundaries, layout=layout)
         # Extract Metadata
         metadata = self.metadata_extractor.extract(document)
         # Build Parsed Scheme Document

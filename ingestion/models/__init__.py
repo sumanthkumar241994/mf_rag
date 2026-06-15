@@ -8,4 +8,3 @@ from .section_boundary import SectionBoundary
 from .document_structure import DocumentStructure
 from .section_marker import SectionMarker
 from .toc_extraction_result import TOCExtractionResult
-from .scheme_metadata import SchemeMetaData
