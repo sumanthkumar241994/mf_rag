@@ -6,7 +6,24 @@ class VersionChunkMappingRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
     
-    def create(self, mapping: VersionChunkMapping):
+    def create(
+        self,
+        *,
+        document_version_id: int,
+        chunk_id: int,
+        chunk_order: int,
+        page_number: int,
+        section_title: str,
+    ) -> VersionChunkMapping:
+
+        mapping = VersionChunkMapping(
+            document_version_id=document_version_id,
+            chunk_id=chunk_id,
+            chunk_order=chunk_order,
+            page_number=page_number,
+            section_title=section_title,
+        )
+
         self.db.add(mapping)
-        self.db.flush()
+
         return mapping

@@ -15,7 +15,7 @@ class Document(Base):
     __tablename__ = 'documents'
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    fund_house: Mapped[str] = mapped_column(String(100))
+    amc_name: Mapped[str] = mapped_column(String(100))
     scheme_code: Mapped[str] = mapped_column(String(255), nullable=True)
     scheme_name: Mapped[str] = mapped_column(String(255))
     document_type: Mapped[str] = mapped_column(String(50))

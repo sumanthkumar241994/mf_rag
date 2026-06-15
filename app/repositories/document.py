@@ -6,7 +6,22 @@ class DocumentRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create(self, document: Document) -> Document:
+    def create(
+        self,
+        *,
+        amc_name: str,
+        scheme_name: str,
+        document_type: str,
+        scheme_code: str | None = None,
+    ) -> Document:
+
+        document = Document(
+            amc_name=amc_name,
+            scheme_name=scheme_name,
+            document_type=document_type,
+            scheme_code=scheme_code,
+        )
+
         self.db.add(document)
         self.db.flush()
         return document

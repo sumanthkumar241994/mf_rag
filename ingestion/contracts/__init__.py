@@ -1,5 +1,5 @@
 from .chunker import Chunker
-from .embedding_provider import EmbeddigProvider
+from .embedding_provider import EmbeddingProvider
 from .loader import Loader
 from .parser import Parser
 from .storage_provider import StorageProvider

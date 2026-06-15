@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     JWT_SALT: str
+    AWS_SECRET_ACCESS_KEY: str
+    AWS_SECRET_KEY_ID: str
+    AWS_REGION: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 
