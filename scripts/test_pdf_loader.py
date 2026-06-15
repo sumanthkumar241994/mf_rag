@@ -2,8 +2,6 @@ from ingestion.loaders.pdf import PDFLoader
 from ingestion.parsers.sid import SIDParser
 from ingestion.metadata.extractor import MetaDataExtractor
 from ingestion.chunking.semantic_chunker import SemanticChunker
-from ingestion.chunking.chunk_normalizer import ChunkNormalizer
-from ingestion.chunking.chunk_hasher import ChunkHasher
 from ingestion.embeddings.embedding_processor import EmbeddingProcessor
 
 document = PDFLoader().load("/users/sumanth/downloads/1781088432492.pdf")

@@ -20,8 +20,8 @@ class VersionChunkMappingRepository:
             document_version_id=document_version_id,
             chunk_id=chunk_id,
             chunk_order=chunk_order,
-            page_number=page_number,
-            section_title=section_title,
+            page_no=page_number,
+            section_name=section_title,
         )
 
         self.db.add(mapping)

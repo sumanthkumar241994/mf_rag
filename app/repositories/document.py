@@ -28,13 +28,13 @@ class DocumentRepository:
     
     def get_by_scheme_and_type(
         self,
-        scheme_code: str,
+        scheme_name: str,
         document_type: str
     ):
         return(
             self.db.query(Document)
             .filter(
-                Document.scheme_code == scheme_code,
+                Document.scheme_name == scheme_name,
                 Document.document_type == document_type
 
             )

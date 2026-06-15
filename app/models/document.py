@@ -20,6 +20,6 @@ class Document(Base):
     scheme_name: Mapped[str] = mapped_column(String(255))
     document_type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default='active')
-    versions: Mapped[list["DocumentVersion"]] = relationship('DoumentVersion', back_populates='document', cascade='all, delete-orphan')
+    versions: Mapped[list["DocumentVersion"]] = relationship('DocumentVersion', back_populates='document', cascade='all, delete-orphan')
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

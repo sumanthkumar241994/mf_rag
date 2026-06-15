@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 
     @property
-    def DATABASE_URL(self):
+    def ASYNC_DATABASE_URL(self):
         return (
             f"postgresql+asyncpg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
             )
     
     @property
-    def ALEMBIC_DATABASE_URL(self):
+    def SYNC_DATABASE_URL(self):
         return (
             f"postgresql+psycopg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"

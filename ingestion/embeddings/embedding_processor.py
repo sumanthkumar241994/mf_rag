@@ -8,15 +8,12 @@ from ingestion.providers.bedrock.titan_embedding_generator import BedrockEmebddi
 class EmbeddingProcessor:
 
     def __init__(
-        self, 
-        chunk_normalizer: ChunkNormalizer, 
-        chunk_hasher: ChunkHasher, 
-        chunk_repository: DocumentChunkRepository,
-        embedding_generator: BedrockEmebddingGenerator
+        self,
+        db
         ):
         self.chunk_normalizer = ChunkNormalizer()
         self.chunk_hasher = ChunkHasher()
-        self.chunk_repository = DocumentChunkRepository()
+        self.chunk_repository = DocumentChunkRepository(db)
         self.embedding_generator = BedrockEmebddingGenerator(AWS().bedrock_runtime)
 
     def process(self, chunk: Chunk):
