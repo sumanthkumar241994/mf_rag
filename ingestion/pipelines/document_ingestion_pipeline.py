@@ -1,9 +1,11 @@
 from pathlib import Path
 import hashlib
+import tempfile
 
 from sqlalchemy.orm import Session
 
 from app.repositories import DocumentRepository, DocumentVersionRepository, VersionChunkMappingRepository
+from app.core.config.aws import AWS
 from ingestion.loaders.pdf import PDFLoader
 from ingestion.parsers.sid import SIDParser
 from ingestion.metadata.extractor import MetaDataExtractor
@@ -24,6 +26,7 @@ class DocumentIngestionPipeline:
         self.document_repository = DocumentRepository(db)
         self.document_version_repository = DocumentVersionRepository(db)
         self.version_chunk_mapping_repository = VersionChunkMappingRepository(db)
+        self.aws = AWS()
         self.db = db
 
     def run(self, *, file_path: str, s3_path: str, document_type: str = 'SID', scheme_code: str | None = None):
@@ -107,6 +110,26 @@ class DocumentIngestionPipeline:
         except Exception:
             self.db.rollback()
             raise
+    
+    def run_from_s3(self,*,bucket: str, key: str, document_type: str='SID', scheme_code: str | None = None):
+        s3 = self.aws.s3
+        suffix=Path(key).suffix or 'pdf'
+        with tempfile.NamedTemporaryFile(
+            suffix=suffix,
+            delete=False,
+        ) as temp_file:
+            local_file_path = temp_file.name
+
+            try:
+                s3.download_file(bucket, key, local_file_path)
+                return self.run(
+                    file_path=local_file_path,
+                    s3_path=f"s3://{bucket}/{key}"
+                    ) 
+
+            finally:
+                Path(local_file_path).unlink(missing_ok=True)
+
 
     def _generate_file_hash(self, file_path: str) -> str:
         with open(file_path, "rb") as file:

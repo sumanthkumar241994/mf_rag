@@ -42,7 +42,6 @@
 # )
 
 
-from nt import pipe
 from ingestion.bootstrap.ingestion_container import IngestionContainer
 from app.core.database import SessionLocal
 
