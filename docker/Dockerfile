@@ -15,4 +15,4 @@ COPY app ./app
 COPY ingestion ./ingestion
 COPY ecs_entrypoint.py .
 
-CMD ['python', 'ecs_entrypoint.py']
+CMD ["python", "ecs_entrypoint.py"]
