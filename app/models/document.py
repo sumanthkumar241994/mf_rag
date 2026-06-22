@@ -22,4 +22,4 @@ class Document(Base):
     status: Mapped[str] = mapped_column(String(20), default='active')
     versions: Mapped[list["DocumentVersion"]] = relationship('DocumentVersion', back_populates='document', cascade='all, delete-orphan')
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

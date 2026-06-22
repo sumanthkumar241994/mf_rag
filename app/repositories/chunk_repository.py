@@ -2,10 +2,11 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.schema import DropColumnComment
 
-from app.models.document_chunk import DocumentChunk
+from app.models import Document, DocumentChunk, DocumentVersion, VersionChunkMapping
 from app.repositories.base_repository import BaseRepository
+
+from app.dtos import ChunkSearchResult
 
 
 class DocumentChunkRepository(BaseRepository):
@@ -42,3 +43,53 @@ class DocumentChunkRepository(BaseRepository):
 
         if chunk:
             await self.db.delete(chunk)
+    
+    async def similarity_search(
+        self,  
+        embedding: list[float], 
+        top_k: int = 10, 
+        scheme_name: str | None = None, 
+        document_type: str | None = None
+    ):
+        distance = DocumentChunk.embedding.cosine_distance(embedding).label("distance")
+        stmt = (
+                select(
+                    DocumentChunk,
+                    VersionChunkMapping,
+                    DocumentVersion,
+                    Document,
+                    distance
+                )
+                .join(
+                    VersionChunkMapping,
+                    VersionChunkMapping.chunk_id == DocumentChunk.id
+
+                )
+                .join(
+                    DocumentVersion,
+                    DocumentVersion.id == VersionChunkMapping.document_version_id
+                )
+                .join(
+                    Document,
+                    Document.id == DocumentVersion.document_id
+                )
+                .where(
+                    DocumentVersion.is_active.is_(True)
+                )
+            )  
+        
+        if scheme_name:
+            stmt = stmt.where(Document.scheme_name == scheme_name)
+        
+        if document_type:
+            stmt = stmt.where(Document.document_type == document_type)
+
+        stmt = stmt.order_by(distance).limit(top_k)
+        
+        result = await self.db.execute(stmt)
+
+        rows = result.all()
+        return [ChunkSearchResult(chunk=chunk, mapping=mapping,version=version, document=document,distance=distance) for (chunk,mapping,version,document,distance) in rows]
+
+
+

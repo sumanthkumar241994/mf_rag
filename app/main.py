@@ -10,6 +10,7 @@ from app.core.middleware import (
     register_authentication_middleware,
     register_session_middleware
 )
+from app.api.router import api_router
 from app.core.database import AsyncSessionLocal, engine
 from app.api.dependencies import DBSession
 from app.observability import setup_logging
@@ -53,14 +54,14 @@ def create_application() -> FastAPI:
     register_session_middleware(app)
     register_authentication_middleware(app)
 
+    app.include_router(
+        api_router,
+        prefix='/api/v1'
+    )
+
     return app
 
 app = create_application()
-
-@app.get("/health")
-async def health_check(request: Request):
-    logger.info(f"user: {request.state.customer_uid} and session: {request.state.session}")
-    return {"status": "ok"}
 
 
 
