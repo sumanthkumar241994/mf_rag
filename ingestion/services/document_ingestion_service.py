@@ -1,7 +1,7 @@
 from sqlite3 import dbapi2
 from sqlalchemy.orm import Session
 
-from app.repositories import ( 
+from app.repositories.ingestion import ( 
     DocumentChunkRepository, 
     DocumentRepository, 
     VersionChunkMappingRepository, 

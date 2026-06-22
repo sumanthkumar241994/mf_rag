@@ -4,7 +4,7 @@ import tempfile
 
 from sqlalchemy.orm import Session
 
-from app.repositories import DocumentRepository, DocumentVersionRepository, VersionChunkMappingRepository
+from app.repositories.ingestion import DocumentRepository, DocumentVersionRepository, VersionChunkMappingRepository
 from app.core.config.aws import AWS
 from ingestion.loaders.pdf import PDFLoader
 from ingestion.parsers.sid import SIDParser
