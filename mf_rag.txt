@@ -1,0 +1,1458 @@
+
+for key in r.scan_iter():
+	if "celery-task" not in str(key) and "sms_global_limit" not in str(key) :
+		print(f"key: {key}")
+
+
+
+src/redis-cli -c -h sqrrl-enterprise-redis1-ro.mp6gjf.ng.0001.aps1.cache.amazonaws.com -p 6379/0
+
+src/redis-cli -c -h prod-sqrrl-enterprise-redis-001.mp6gjf.0001.aps1.cache.amazonaws.com -p 6379/0
+
+ # Run this directly in your EC2 terminal (not inside the redis-cli prompt)
+src/redis-cli -c -h sqqrl-redis-server.mp6gjf.0001.aps1.cache.amazonaws.com -p 6379 --scan --pattern "[A-Z]*[0-9]*" | xargs -L 100 src/redis-cli -c -h sqqrl-redis-server.mp6gjf.0001.aps1.cache.amazonaws.com -p 6379 unlink
+
+
+import redis
+
+# 1. Define your Source and Target connections
+# Set decode_responses=False because DUMP handles raw binary data
+SOURCE_REDIS = {
+    'host': 'sqqrl-redis-server.mp6gjf.0001.aps1.cache.amazonaws.com',
+    'port': 6379,
+    'db': 0,
+    'decode_responses': False 
+}
+
+TARGET_REDIS = {
+    'host': 'prod-sqrrl-enterprise-redis.mp6gjf.ng.0001.aps1.cache.amazonaws.com',
+    'port': 6379,
+    'db': 0,
+    'decode_responses': False
+}
+
+def migrate_redis_data():
+    # Connect to both instances
+    src = redis.Redis(**SOURCE_REDIS)
+    tgt = redis.Redis(**TARGET_REDIS)
+    
+    cursor = 0
+    total_copied = 0
+    print("Connecting to instances and initiating data migration...")
+
+    while True:
+        # Scan source in batches of 500 to keep memory footprint low
+        cursor, keys = src.scan(cursor=cursor, count=500)
+        
+        for key in keys:
+            # 1. Fetch the raw binary dump of the data structure
+            raw_dump = src.dump(key)
+            
+            if raw_dump is None:
+                continue  # Key might have expired between SCAN and DUMP
+                
+            # 2. Fetch the remaining TTL (Time To Live) in milliseconds
+            ttl = src.pttl(key)
+            if ttl < 0: 
+                ttl = 0  # A TTL of -1 or -2 means no expiration or expired; set to 0 for RESTORE
+                
+            try:
+                # 3. Restore the key into the target Redis instance
+                # replace=True ensures it updates the key if it already exists on target
+                tgt.restore(key, ttl, raw_dump, replace=True)
+                total_copied += 1
+            except redis.exceptions.ResponseError as e:
+                print(f"Error restoring key {key}: {e}")
+                
+        print(f"Copied {len(keys)} keys in this batch... Total: {total_copied}")
+        
+        # Break loop when scan cursor wraps back to 0
+        if cursor == 0:
+            break
+
+    print(f"\nMigration Complete! Successfully copied {total_copied} keys.")
+
+if __name__ == "__main__":
+    try:
+        migrate_redis_data()
+    except Exception as e:
+        print(f"Migration failed: {e}")
+
+
+
+
+app/
+ ├── api/
+ │    ├── v1/
+ │    └── dependencies/
+ │
+ ├── core/
+ │    ├── config/
+ │    ├── security/
+ │    └── middleware/
+ │
+ ├── services/
+ │    ├── portfolio/
+ │    ├── ai/
+ │    ├── planner/
+ │    └── orchestration/
+ │
+ ├── agents/
+ │
+ ├── repositories/
+ │
+ ├── schemas/
+ │
+ ├── models/
+ │
+ ├── memory/
+ │
+ ├── llm_gateway/
+ │
+ ├── observability/
+ │
+ └── utils/
+
+
+
+CREATE TABLE document_chunks (
+    chunk_id UUID PRIMARY KEY,
+
+    scheme_name TEXT,
+    amc_name TEXT,
+
+    document_type TEXT,
+    section_name TEXT,
+    semantic_type TEXT,
+
+    source_file TEXT,
+
+    page_number INTEGER,
+
+    chunk_text TEXT,
+
+    embedding VECTOR(1024),
+
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+
+CREATE TABLE scheme_embeddings (
+    id UUID PRIMARY KEY,
+
+    scheme_code VARCHAR(50) UNIQUE NOT NULL,
+    scheme_name VARCHAR(255) NOT NULL,
+
+    amc_name VARCHAR(255),
+
+    category VARCHAR(100),
+    sub_category VARCHAR(100),
+
+    risk_level VARCHAR(50),
+
+    benchmark VARCHAR(255),
+
+    fund_manager VARCHAR(255),
+
+    inception_date DATE,
+
+    investment_objective TEXT,
+
+    investment_style TEXT,
+
+    scheme_summary TEXT NOT NULL,
+
+    embedding VECTOR(1024),
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+
+
+ssh -i /users/sumanth/.ssh/bastion.pem -L 6543:mfdb.c9eeeu4ccvac.ap-south-1.rds.amazonaws.com:5432 ec2-user@13.201.13.218
+
+
+yet to do
+
+PDF
+ ↓
+Heading Detection
+ ↓
+Section Chunking
+ ↓
+Semantic Normalization
+ ↓
+800–1200 token chunks
+ ↓
+150 token overlap
+ ↓
+Embeddings
+
+
+
+app/
+│
+├── main.py
+│
+├── api/
+│   ├── v1/
+│   └── dependencies/
+│
+├── core/
+│   ├── config/
+│   ├── security/
+│   └── middleware/
+│
+├── orchestration/
+│   ├── langgraph/
+│   │   ├── graph.py
+│   │   ├── state.py
+│   │   ├── router.py
+│   │   │
+│   │   ├── nodes/
+│   │   │   ├── planner_node.py
+│   │   │   ├── portfolio_node.py
+│   │   │   ├── risk_node.py
+│   │   │   ├── tax_node.py
+│   │   │   ├── rag_node.py
+│   │   │   └── comparison_node.py
+│   │   │
+│   │   └── workflows/
+│   │       ├── advisor_workflow.py
+│   │       ├── comparison_workflow.py
+│   │       └── planning_workflow.py
+│   │
+│   └── execution/
+│       └── workflow_executor.py
+│
+├── agents/
+│   ├── planner_agent.py
+│   ├── portfolio_agent.py
+│   ├── risk_agent.py
+│   ├── tax_agent.py
+│   ├── comparison_agent.py
+│   └── rag_agent.py
+│
+├── mcp/
+│   ├── server.py
+│   │
+│   ├── tools/
+│   │   ├── scheme_search_tool.py
+│   │   ├── scheme_compare_tool.py
+│   │   ├── portfolio_tool.py
+│   │   ├── sip_calculator_tool.py
+│   │   ├── retirement_tool.py
+│   │   ├── tax_calculator_tool.py
+│   │   ├── document_search_tool.py
+│   │   └── risk_score_tool.py
+│   │
+│   └── registry.py
+│
+├── services/
+│   ├── ai/
+│   ├── portfolio/
+│   ├── planner/
+│   └── orchestration/
+│
+├── ingestion/
+│   ├── loaders/
+│   │   ├── pdf_loader.py
+│   │   ├── docx_loader.py
+│   │   └── html_loader.py
+│   │
+│   ├── parsers/
+│   │   ├── sid_parser.py
+│   │   ├── kim_parser.py
+│   │   ├── factsheet_parser.py
+│   │   └── annual_report_parser.py
+│   │
+│   ├── metadata/
+│   │   ├── extractor.py
+│   │   ├── normalizer.py
+│   │   └── classifier.py
+│   │
+│   ├── chunking/
+│   │   ├── chunk_generator.py
+│   │   └── semantic_chunker.py
+│   │
+│   ├── embeddings/
+│   │   └── embedding_generator.py
+│   │
+│   └── pipelines/
+│       └── document_ingestion_pipeline.py
+│
+├── vectorstore/
+│   ├── pgvector_client.py
+│   ├── retrieval.py
+│   ├── hybrid_search.py
+│   ├── reranker.py
+│   └── filters.py
+│
+├── repositories/
+│
+├── schemas/
+│   ├── requests/
+│   ├── responses/
+│   └── events/
+│
+├── models/
+│
+├── memory/
+│   ├── conversation_memory.py
+│   ├── session_memory.py
+│   ├── user_profile_memory.py
+│   └── langgraph_memory.py
+│
+├── llm_gateway/
+│   ├── openai_client.py
+│   ├── gemini_client.py
+│   ├── anthropic_client.py
+│   └── router.py
+│
+├── prompts/
+│   ├── system/
+│   ├── rag/
+│   └── agents/
+│
+├── workers/
+│   ├── sqs_consumer.py
+│   ├── ingestion_worker.py
+│   ├── embedding_worker.py
+│   ├── indexing_worker.py
+│   └── cleanup_worker.py
+│
+├── observability/
+│   ├── logging.py
+│   ├── metrics.py
+│   ├── tracing.py
+│   ├── monitoring.py
+│
+├── langfuse/
+│   ├── client.py
+│   ├── traces.py
+│   ├── evaluations.py
+│   ├── callbacks.py
+│   └── decorators.py
+├── utils/
+│
+└── tests/
+    ├── unit/
+    ├── integration/
+    ├── rag/
+    └── agents/
+
+
+
+| Layer         | Technology               |
+| ------------- | ------------------------ |
+| API           | FastAPI                  |
+| Agents        | LangGraph                |
+| Tool Calling  | MCP                      |
+| Vector Search | pgvector                 |
+| Embeddings    | OpenAI / BGE             |
+| LLM Routing   | OpenAI, Gemini, Claude   |
+| Queue         | SQS                      |
+| Storage       | S3                       |
+| Database      | PostgreSQL               |
+| Observability | Langfuse + OpenTelemetry |
+| Metrics       | Prometheus               |
+| Dashboards    | Grafana                  |
+| Logs          | CloudWatch               |
+
+
+
+from fastapi import FastAPI, Query
+from typing import Annotated
+from enum import Enum
+from pydantic import BaseModel
+from pydantic import AfterValidator
+
+app = FastAPI()
+
+@app.get('/user/me')
+async def read_user_me():
+    return {"message": "I am an fast api application"}
+
+@app.get('/user/{user_id}')
+async def read_user(user_id: str):
+    return {"user_id": user_id}
+
+class ModelName(int, Enum):
+    alexnet = 1
+    resnet = 2
+    lenet = 3
+
+@app.get('/models/{name}')
+async def model_name(name: ModelName):
+    if name is ModelName.alexnet:
+        return {"model": name, "application": "Used for Purpose X"}
+    elif name is ModelName.resnet:
+        return {"model": name, "application": "Used for Purpose Y"}
+    elif name is ModelName.lenet:
+        return {"model": name, "application": "Used for purpose Z"}
+    
+
+@app.get('/file/{file_path:path}')
+async def read_file_path(file_path: str):
+    return {"file_path": file_path}
+
+db_items = [{"item1": "Cooker"}, {"item2": "laptop"}, {"item3":"mobile"},{"item4": "charger"}]
+@app.get('/items/')
+async def read_db_items(skip: int = 1 , limit: int = 10):
+    return db_items[skip: skip+limit]
+
+
+@app.get('/item/')
+async def read_db_item(item: str, q: str| None=None):
+    if q:
+        return {"item": item, "q": q}
+    return {"item": item}
+
+
+@app.get('/users/{user_id}/items/{item_id}')
+def read_user_items(user_id: int, item_id: str, q: str | None=None, short: bool | None=None):
+    item = {"user":user_id,"item": item_id}
+    if q:
+        item.update({"q": q})
+    if short:
+        item.update({"short": short})
+    
+
+    return item
+    
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+
+
+@app.post('/items/')
+def create_item(item: Item):
+    return item
+
+
+
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from app.api.v1.router import api_router
+from app.core.config.settings import settings
+from app.core.middleware.logging import register_logging_middleware
+from app.core.middleware.tracing import register_tracing_middleware
+from app.observability.logging import setup_logging
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup events
+    """
+
+    setup_logging()
+
+    # Initialize DB Connection Pool
+    # await db.connect()
+
+    # Initialize Vector Store
+    # await vector_store.initialize()
+
+    # Initialize Langfuse
+    # initialize_langfuse()
+
+    # Initialize MCP Server Registry
+    # register_tools()
+
+    yield
+
+    """
+    Shutdown events
+    """
+
+    # await db.disconnect()
+    # await vector_store.close()
+
+
+def create_application() -> FastAPI:
+    app = FastAPI(
+        title=settings.APP_NAME,
+        version=settings.APP_VERSION,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        lifespan=lifespan,
+    )
+
+    # Middleware
+    register_logging_middleware(app)
+    register_tracing_middleware(app)
+
+    # Routers
+    app.include_router(
+        api_router,
+        prefix="/api/v1",
+    )
+
+    return app
+
+
+app = create_application()
+
+
+
+
+from fastapi import APIRouter
+
+from app.api.v1.chat import router as chat_router
+from app.api.v1.search import router as search_router
+from app.api.v1.portfolio import router as portfolio_router
+
+api_router = APIRouter()
+
+api_router.include_router(
+    chat_router,
+    prefix="/chat",
+    tags=["Chat"],
+)
+
+api_router.include_router(
+    search_router,
+    prefix="/search",
+    tags=["Search"],
+)
+
+api_router.include_router(
+    portfolio_router,
+    prefix="/portfolio",
+    tags=["Portfolio"],
+)
+
+
+
+/opt/homebrew/opt/postgresql@18/bin/pg_restore \
+--verbose \
+--clean \
+--if-exists \
+--no-owner \
+--no-privileges \
+-h localhost \
+-p 5433 \
+-U postgres \
+-d mfdb \
+/users/sumanth/dump-mfund-202606101057
+
+
+
+/opt/homebrew/opt/postgresql@18/bin/pg_restore \
+--verbose \
+--clean \
+--if-exists \
+--no-owner \
+--no-privileges \
+-h localhost \
+-p 5433 \
+-U postgres \
+-d mfdb\
+/users/sumanth/dump-mfund-202606101057 > restore.log 2>&1
+
+
+psql \
+-h <rds-endpoint> \
+-U postgres \
+-d postgres
+
+psql \
+-h mfdb.c9eeeu4ccvac.ap-south-1.rds.amazonaws.com \
+-U postgres \
+-d postgres
+
+psql -h mfdb.c9eeeu4ccvac.ap-south-1.rds.amazonaws.com -U postgres -d mfdb
+
+
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+
+    SELECT current_database();
+
+CREATE EXTENSION IF NOT EXISTS citext;
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+DROP DATABASE postgres WITH (FORCE);
+
+CREATE EXTENSION IF NOT EXISTS hstore;
+
+SELECT extname
+FROM pg_extension
+WHERE extname = 'hstore';
+
+SELECT n.nspname AS schema_name,
+       t.typname AS type_name
+FROM pg_type t
+JOIN pg_namespace n
+  ON t.typnamespace = n.oid
+WHERE t.typname = 'hstore';
+
+select * from pg_database
+
+
+DROP DATABASE mf_rag WITH (FORCE);
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+select 
+
+select * from pg_database
+
+
+
+Week 1
+✓ Alembic
+✓ Repository Layer
+✓ LLM Gateway
+✓ PGVector Setup
+Week 2
+✓ PDF Ingestion
+✓ Chunking
+✓ Embeddings
+✓ Retrieval
+Week 3
+✓ RAG Agent
+✓ Chat API
+✓ Conversation Memory
+Week 4
+✓ LangGraph
+✓ MCP Tools
+✓ Portfolio Agent
+
+
+models for
+conversations
+chat_messages
+documents
+document_chunks
+embeddings_metadata
+
+
+repositories/
+├── document_repository.py
+├── chunk_repository.py
+├── conversation_repository.py
+└── user_repository.py
+
+
+models/
+│
+├── conversation.py
+├── chat_message.py
+│
+├── document.py
+├── document_version.py
+├── document_chunk.py
+├── embedding.py
+│
+├── agent_run.py
+├── workflow_run.py
+│
+├── retrieval_log.py
+├── citation.py
+│
+├── user_profile.py
+│
+└── base.py
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id
+    user_id
+
+    session_id
+
+    title
+
+    workflow_type
+    # advisor
+    # planning
+    # comparison
+
+    current_agent
+
+    status
+    # active
+    # completed
+
+    created_at
+    updated_at
+
+
+
+    class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id
+
+    conversation_id
+
+    role
+    # user
+    # assistant
+    # tool
+    # system
+
+    content
+
+    model_name
+
+    token_usage
+
+    created_at
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id
+
+    source_type
+    # sid
+    # kim
+    # factsheet
+    # annual_report
+
+    scheme_code
+
+    fund_house
+
+    document_name
+
+    s3_path
+
+    checksum
+
+    ingestion_status
+
+    uploaded_at
+
+
+class DocumentVersion(Base):
+    __tablename__ = "document_versions"
+
+    id
+
+    document_id
+
+    version
+
+    effective_date
+
+    s3_path
+
+    checksum
+
+    created_at
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id
+
+    document_version_id
+
+    chunk_index
+
+    page_number
+
+    chunk_text
+
+    token_count
+
+    metadata_json
+
+    created_at
+
+
+
+from pgvector.sqlalchemy import Vector
+
+class Embedding(Base):
+    __tablename__ = "embeddings"
+
+    id
+
+    chunk_id
+
+    embedding_model
+
+    embedding = Column(Vector(1536))
+
+    created_at
+
+
+class RetrievalLog(Base):
+    __tablename__ = "retrieval_logs"
+
+    id
+
+    conversation_id
+
+    query
+
+    retrieval_type
+    # vector
+    # bm25
+    # hybrid
+
+    top_k
+
+    created_at
+
+
+class Citation(Base):
+    __tablename__ = "citations"
+
+    id
+
+    retrieval_log_id
+
+    chunk_id
+
+    score
+
+    rank
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+
+    id
+
+    conversation_id
+
+    agent_name
+
+    input_data
+
+    output_data
+
+    started_at
+
+    completed_at
+
+    status
+
+
+class WorkflowRun(Base):
+    __tablename__ = "workflow_runs"
+
+    id
+
+    conversation_id
+
+    workflow_name
+
+    state_json
+
+    status
+
+    started_at
+
+    completed_at
+
+
+repositories/
+│
+├── conversation_repository.py
+├── chat_repository.py
+│
+├── document_repository.py
+├── chunk_repository.py
+├── embedding_repository.py
+│
+├── retrieval_repository.py
+├── citation_repository.py
+│
+├── workflow_repository.py
+└── agent_repository.py
+
+
+
+FastAPI
+LangGraph
+PostgreSQL
+pgvector
+SQS
+MCP
+Langfuse
+
+
+Vectore database
+
+SID
+KIM
+Annual Reports
+Portfolio Commentary
+Fund Manager Commentary
+Market Outlook Documents
+
+
+hybrid retrieval architecture
+
+
+
+CREATE TABLE document_chunks (
+    chunk_id UUID,
+    scheme_name TEXT,
+    document_type TEXT,
+    semantic_type TEXT,
+    section TEXT,
+    page_no INT,
+    chunk_text TEXT,
+    embedding VECTOR(1024),
+    created_at TIMESTAMP
+);
+
+CREATE INDEX idx_embeddings
+ON document_chunks
+USING hnsw
+(embedding vector_cosine_ops);
+
+
+
+This is enough to:
+
+Upload SID/KIM PDFs to S3
+Trigger SQS
+Run ingestion worker
+Parse PDF
+Chunk content
+Generate Bedrock embeddings
+Store vectors in pgvector
+Perform semantic search
+Run LangGraph agents
+Store chat history and citations
+
+You can add retrieval_logs, citations, and user_profiles in the next iteration once ingestion and retrieval
+
+
+
+documents
+---------
+id UUID PK
+
+fund_house VARCHAR(255)
+
+scheme_code VARCHAR(100)
+
+scheme_name VARCHAR(255)
+
+document_type VARCHAR(50)
+-- SID
+-- KIM
+-- ANNUAL_REPORT
+-- COMMENTARY
+-- MARKET_OUTLOOK
+
+status VARCHAR(20)
+-- active
+-- inactive
+
+created_at TIMESTAMP
+
+updated_at TIMESTAMP
+
+UNIQUE(
+    fund_house,
+    scheme_code,
+    document_type
+)
+
+
+
+document_versions
+-----------------
+id UUID PK
+
+document_id UUID FK
+
+version_no INTEGER
+
+file_name VARCHAR(500)
+
+s3_bucket VARCHAR(255)
+
+s3_key TEXT
+
+file_hash VARCHAR(64)
+
+effective_date DATE
+
+is_active BOOLEAN
+
+uploaded_by VARCHAR(255)
+
+created_at TIMESTAMP
+
+
+document_chunks
+---------------
+id UUID PK
+
+chunk_hash VARCHAR(64)
+
+content TEXT
+
+token_count INTEGER
+
+embedding VECTOR(1024)
+
+embedding_model VARCHAR(255)
+
+created_at TIMESTAMP
+
+UNIQUE(chunk_hash)
+
+
+version_chunk_mapping
+---------------------
+id UUID PK
+
+document_version_id UUID FK
+
+chunk_id UUID FK
+
+chunk_order INTEGER
+
+page_no INTEGER
+
+section_name VARCHAR(255)
+
+created_at TIMESTAMP
+
+
+UNIQUE(
+    document_version_id,
+    chunk_order
+)
+
+
+
+CREATE UNIQUE INDEX idx_chunk_hash
+ON document_chunks(chunk_hash);
+
+CREATE INDEX idx_active_version
+ON document_versions(
+    document_id,
+    is_active
+);
+
+
+
+CREATE INDEX idx_version_chunk
+ON version_chunk_mapping(
+    document_version_id,
+    chunk_id
+);
+
+
+
+CREATE INDEX idx_embedding_hnsw
+ON document_chunks
+USING hnsw (embedding vector_cosine_ops);
+
+
+app/
+│
+├── ingestion/
+│
+│   ├── contracts/
+│   │   ├── loader.py
+│   │   ├── parser.py
+│   │   ├── storage_provider.py
+│   │   └── embedding_provider.py
+│   │
+│   ├── models/
+│   │   ├── page.py
+│   │   ├── parsed_document.py
+│   │   ├── document_section.py
+│   │   ├── parsed_scheme_document.py
+│   │   └── chunk.py
+│   │
+│   ├── loaders/
+│   │   ├── base_loader.py
+│   │   └── pdf_loader.py
+│   │
+│   ├── parsers/
+│   │   ├── base_parser.py
+│   │   ├── sid_parser.py
+│   │   ├── kim_parser.py
+│   │   └── parser_factory.py
+│   │
+│   ├── metadata/
+│   │   ├── extractor.py
+│   │   ├── normalizer.py
+│   │   └── classifier.py
+│   │
+│   ├── chunking/
+│   │   ├── chunk_generator.py
+│   │   ├── semantic_chunker.py
+│   │   └── hash_generator.py
+│   │
+│   ├── embeddings/
+│   │   ├── embedding_generator.py
+│   │   └── embedding_reuse.py
+│   │
+│   ├── providers/
+│   │   ├── storage/
+│   │   │   └── s3_storage_provider.py
+│   │   │
+│   │   └── embeddings/
+│   │       └── bedrock_embedding_provider.py
+│   │
+│   ├── services/
+│   │   ├── document_service.py
+│   │   ├── version_service.py
+│   │   ├── chunk_service.py
+│   │   └── ingestion_job_service.py
+│   │
+│   ├── pipelines/
+│   │   └── document_ingestion_pipeline.py
+│   │
+│   ├── constants/
+│   │   ├── document_types.py
+│   │   ├── section_names.py
+│   │   └── statuses.py
+│   │
+│   ├── exceptions/
+│   │
+│   └── utils/
+│
+
+
+
+├── ingestion/
+│   │
+│   ├── models/
+│   │   ├── parsed_document.py
+│   │   ├── page.py
+│   │   ├── document_section.py
+│   │   ├── parsed_scheme_document.py
+│   │   └── chunk.py
+│   │
+│   ├── loaders/
+│   │   ├── base_loader.py
+│   │   └── pdf_loader.py
+│   │
+│   ├── parsers/
+│   │   ├── base_parser.py
+│   │   ├── sid_parser.py
+│   │   ├── kim_parser.py
+│   │   └── parser_factory.py
+│   │
+│   ├── metadata/
+│   │   ├── extractor.py
+│   │   ├── normalizer.py
+│   │   └── classifier.py
+│   │
+│   ├── chunking/
+│   │   ├── chunk_generator.py
+│   │   ├── semantic_chunker.py
+│   │   └── hash_generator.py
+│   │
+│   ├── embeddings/
+│   │   ├── embedding_generator.py
+│   │   └── embedding_reuse.py
+│   │
+│   ├── providers/
+│   │   ├── storage/
+│   │   │   ├── base_storage_provider.py
+│   │   │   └── s3_storage_provider.py
+│   │   │
+│   │   └── embeddings/
+│   │       ├── base_embedding_provider.py
+│   │       └── bedrock_embedding_provider.py
+│   │
+│   ├── services/
+│   │   ├── document_service.py
+│   │   ├── version_service.py
+│   │   ├── chunk_service.py
+│   │   └── ingestion_job_service.py
+│   │
+│   ├── pipelines/
+│   │   ├── base_pipeline.py
+│   │   └── document_ingestion_pipeline.py
+│   │
+│   ├── glue/
+│   │   ├── job.py
+│   │   ├── sqs_message_handler.py
+│   │   └── bootstrap.py
+│   │
+│   ├── constants/
+│   │   ├── document_types.py
+│   │   ├── section_names.py
+│   │   └── ingestion_status.py
+│   │
+│   ├── utils/
+│   │   ├── file_utils.py
+│   │   ├── date_utils.py
+│   │   └── text_utils.py
+│   │
+│   └── exceptions/
+│       ├── parser_exceptions.py
+│       ├── ingestion_exceptions.py
+│       └── embedding_exceptions.py
+
+
+── services/
+│   ├── entity_resolution/
+│   │   ├── amc_resolver.py
+│   │   ├── scheme_resolver.py
+│   │   └── alias_resolver.py
+
+
+
+
+sid/
+│
+├── parser.py
+│
+├── metadata_extractor.py
+│
+├── toc_extractor.py
+│
+├── heading_extractor.py
+│
+├── boundary_builder.py
+│
+└── section_extractor.py
+
+
+
+new flow of doc extractor 
+
+PDF
+ ↓
+Loader
+ ↓
+Page Content
+ ↓
+Heading Detector
+ ↓
+SectionMarker
+(page + line)
+ ↓
+Boundary Builder
+ ↓
+SectionBoundary
+(page + line ranges)
+ ↓
+SectionExtractor
+ ↓
+DocumentSection
+
+
+
+updated sid pdf extractor
+
+PDF
+ ↓
+PDFLoader
+ ↓
+ParsedDocument
+ ↓
+SIDTOCExtractor
+ ↓
+TOCExtractionResult
+
+ ↓
+
+SIDHeadingExtractor
+ ↓
+SectionMarker[]
+
+ ↓
+
+HeadingVerifier
+(optional)
+
+ ↓
+
+SectionBoundaryBuilder
+
+ ↓
+
+SectionExtractor
+
+ ↓
+
+ParsedSchemeDocument
+
+
+
+
+Future
+------
+4. LayoutDetector
+5. Header/Footer frequency analysis
+
+
+
+to handle the traditional and table based strucuture
+
+sid/
+
+├── parser.py
+
+├── structure_detector.py
+
+├── traditional/
+│   ├── toc_extractor.py
+│   ├── heading_extractor.py
+│   ├── boundary_builder.py
+│   └── section_extractor.py
+
+└── simplified/
+    ├── table_detector.py
+    ├── row_extractor.py
+    └── section_builder.py
+
+
+
+SECTION_CATEGORY_MAP = {
+    "INVESTMENT OBJECTIVE": "objective",
+
+    "HOW WILL THE SCHEME ALLOCATE ASSETS":
+        "asset_allocation",
+
+    "WHERE WILL THE SCHEME INVEST":
+        "investment_universe",
+
+    "INVESTMENT STRATEGIES":
+        "investment_strategy",
+
+    "BENCHMARK":
+        "benchmark",
+
+    "WHO MANAGES THE SCHEME":
+        "fund_manager",
+
+    "RISK FACTORS":
+        "risk",
+
+    "FUNDAMENTAL ATTRIBUTES":
+        "fundamental_attributes",
+
+    "LOAD STRUCTURE":
+        "load_structure",
+
+    "TAXATION":
+        "taxation",
+}
+
+
+
+Final Semantic Chunker Architecture
+DocumentSection
+        │
+        ▼
+SectionCategoryResolver
+        │
+        ▼
+SubHeadingDetector
+        │
+        ▼
+SemanticSegment
+        │
+        ▼
+TokenWindowChunker
+        │
+        ▼
+ChunkBuilder
+        │
+        ▼
+Chunk
+
+
+
+PDF
+↓
+Metadata Extraction
+↓
+SID Parser
+↓
+DocumentSection
+↓
+SemanticChunker
+↓
+ChunkNormalizer
+↓
+ChunkHasher
+↓
+EmbeddingGenerator
+↓
+Database
+
+
+from ingestion.pipelines.document_ingestion_pipeline import DocumentIngestionPipeline
+from app.core.database import SessionLocal
+db = SessionLocal()
+i = DocumentIngestionPipeline(db=db)
+file_path='/users/sumanth/downloads/1781088432492.pdf'
+i.run(file_path=file_path,s3_path=file_path)
+
+s3://mf-scheme-documents/sid/1775025166649.pdf
+
+
+--python-modules-installer-option
+
+
+aws ecr get-login-password \
+--region ap-south-1 \
+| docker login \
+--username AWS \
+--password-stdin \
+526484109177.dkr.ecr.ap-south-1.amazonaws.com
+
+docker tag mf-ingestion:latest \
+526484109177.dkr.ecr.ap-south-1.amazonaws.com/mutualfund/mf-ingestion:latest
+
+docker push \
+526484109177.dkr.ecr.ap-south-1.amazonaws.com/mutualfund/mf-ingestion:latest
+
+
+
+Tomorrow
+
+chunk_repository.py
+document_repository.py
+retrieval_service.py
+
+
+Day After
+
+retrieval endpoint
+test 20 mutual fund queries
+fix retrieval quality
+
+
+
+Next
+
+conversations table
+messages table
+conversation service
+
+
+Then
+
+llm_gateway.py
+
+
+
+
+
+
