@@ -1,15 +1,15 @@
 from app.models import document
 from app.repositories import DocumentRepository, DocumentChunkRepository
-from app.schemas.retrieval import RetrievedChunk
-from app.services.bedrock_embedding_service import BedrockEmbeddingService
+from app.schemas.responses.retrieval import RetrievedChunk
+from app.llm_gateway.embeddings.bedrock_embedding_client import BedrockEmbeddingClient
 
 class RetrievalService:
     def __init__(
         self,
-        embedding_service: BedrockEmbeddingService,
+        embedding_client: BedrockEmbeddingClient,
         chunk_repository: DocumentChunkRepository
     ):
-        self.embedding_service = embedding_service
+        self.embedding_client = embedding_client
         self.chunk_repository = chunk_repository
 
     async def retrieve(
@@ -21,7 +21,7 @@ class RetrievalService:
     ) -> list[RetrievedChunk]:
 
         # Generate query embedding
-        query_embedding = await self.embedding_service.generate(query)
+        query_embedding = await self.embedding_client.generate(query)
 
         #vector search
         results = (

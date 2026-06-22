@@ -25,7 +25,7 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
-            f"/{self.POSTGRES_DB}"
+            f"/{self.POSTGRES_DB}?ssl=require"
             )
     
     @property
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
-            f"/{self.POSTGRES_DB}"
+            f"/{self.POSTGRES_DB}?ssl=require"
         )
 
 settings = Settings()

@@ -2,7 +2,7 @@ import json
 
 from app.core.config import settings
 
-class BedrockEmbeddingService:
+class BedrockEmbeddingClient:
 
     def __init__(self, bedrock_client):
         self.client = bedrock_client

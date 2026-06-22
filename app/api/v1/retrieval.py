@@ -1,8 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends
 
-from app.schemas.retrieval import RetrievalRequest
-from app.services import RetrievalService
+from app.schemas.requests.retrieval import RetrievalRequest
+from app.retrieval.retrieval_service import RetrievalService
 from app.api.dependencies import get_retrieval_service
 
 logger = logging.getLogger(__name__)
