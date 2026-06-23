@@ -1,5 +1,5 @@
 import json
-import boto3
+import asyncio
 
 from app.core.config.settings import settings
 from app.core.config.aws import AWS
@@ -9,8 +9,8 @@ from app.dtos.llm.llm_response import LLMResponse
 
 from app.llm_gateway.providers.base import LLMProvider
 
-class AnthropicProvider(LLMProvider):
-    MODEL_ID = settings.CLAUDE_MODEL_ID
+class GemmaProvider(LLMProvider):
+    MODEL_ID = settings.BEDROCK_GEMMA_MODEL_ID
 
     def __init__(self):
         self.bedrock_client = AWS().bedrock_runtime
@@ -35,8 +35,8 @@ class AnthropicProvider(LLMProvider):
             ]
         }
 
-        response = self.bedrock_client.invoke_model(modelId=self.MODEL_ID, body=json.dumps(body))
+        response = await asyncio.to_thread(self.bedrock_client.invoke_model,modelId=self.MODEL_ID, body=json.dumps(body))
         response_body = json.loads(response['body'].read())
-        answer = response_body['content'][0]['text']
+        answer = response_body['choices'][0]['message']['content']
 
         return LLMResponse(answer=answer, model=self.MODEL_ID)

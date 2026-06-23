@@ -1,4 +1,5 @@
 import json
+import asyncio
 
 from app.core.config import settings
 
@@ -15,7 +16,7 @@ class BedrockEmbeddingClient:
             "inputText": text
         }
 
-        response = self.client.invoke_model(
+        response = await asyncio.to_thread(self.client.invoke_model,
             modelId=settings.BEDROCK_EMBEDDING_MODEL,
             body=json.dumps(payload)
         )

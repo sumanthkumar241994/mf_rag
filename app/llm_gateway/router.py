@@ -1,4 +1,4 @@
-from app.llm_gateway.providers.anthropic_client import AnthropicProvider
+from app.llm_gateway.providers.bedrock_claude_gateway import AnthropicProvider
 
 class LLMRouter:
     @staticmethod

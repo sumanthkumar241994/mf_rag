@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     AWS_SECRET_KEY_ID: str
     AWS_REGION: str
     BEDROCK_EMBEDDING_MODEL: str
-    CLAUDE_MODEL_ID: str
+    BEDROCK_CLAUDE_MODEL_ID: str
+    BEDROCK_GEMMA_MODEL_ID : str = ''
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 
