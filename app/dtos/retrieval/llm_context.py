@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from app.schemas.retrieval import RetrievedChunk
+from app.schemas.responses.retrieval import RetrievedChunk
 
 @dataclass(slots=True)
 class LLMContext:

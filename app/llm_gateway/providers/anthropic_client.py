@@ -1,0 +1,42 @@
+import json
+import boto3
+
+from app.core.config.settings import settings
+from app.core.config.aws import AWS
+
+from app.dtos.llm.llm_request import LLMRequest
+from app.dtos.llm.llm_response import LLMResponse
+
+from app.llm_gateway.providers.base import LLMProvider
+
+class AnthropicProvider(LLMProvider):
+    MODEL_ID = settings.CLAUDE_MODEL_ID
+
+    def __init__(self):
+        self.bedrock_client = AWS().bedrock_runtime
+
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "system": request.system_prompt,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"""
+                    Question: 
+                    {request.query}
+
+                    Context:
+                    {request.context}
+                    """
+                }
+            ]
+        }
+
+        response = self.bedrock_client.invoke_model(modelId=self.MODEL_ID, body=json.dumps(body))
+        response_body = json.loads(response['body'].read())
+        answer = response_body['content'][0]['text']
+
+        return LLMResponse(answer=answer, model=self.MODEL_ID)

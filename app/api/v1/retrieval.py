@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from app.schemas.requests.retrieval import RetrievalRequest
 from app.retrieval.retrieval_service import RetrievalService
 from app.api.dependencies import get_retrieval_service
+from app.core.config.aws import AWS
 
 logger = logging.getLogger(__name__)
 

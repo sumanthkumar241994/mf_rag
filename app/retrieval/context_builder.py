@@ -1,8 +1,8 @@
 from collections import OrderedDict
-from app.schemas.retrieval import RetrievedChunk
-from app.dtos.llm_context import LLMContext
+from app.schemas.responses.retrieval import RetrievedChunk
+from app.dtos.retrieval.llm_context import LLMContext
 
-class contextBuilder:
+class ContextBuilder:
     """
     Build LLM Ready context from retrieved chunks
 
@@ -28,7 +28,7 @@ class contextBuilder:
             return "", {}
 
         unique_chunks = self._deduplicate(chunks)
-        context_parts = list[str] = []
+        context_parts : list[str] = []
         source_map: dict[int, RetrievedChunk] = {}
 
         current_size = 0
