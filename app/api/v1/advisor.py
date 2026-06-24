@@ -10,11 +10,8 @@ router = APIRouter()
 
 @router.post("/chat",response_model=AdvisorResponse)
 async def chat(request: AdvisorRequest, advisor_service: AdvisorService=Depends(get_advisor_service)):
-    advisor_response = await advisor_service.ask(
-        query=request.query,
-        top_k=request.top_k,
-        scheme_name=request.scheme_name,
-        document_type=request.document_type
+    advisor_response = await advisor_service.chat(
+        query=request.query
     )
 
     return advisor_response

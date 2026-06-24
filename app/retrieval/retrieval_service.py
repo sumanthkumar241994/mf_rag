@@ -3,6 +3,9 @@ from app.repositories import DocumentRepository, DocumentChunkRepository
 from app.schemas.responses.retrieval import RetrievedChunk
 from app.llm_gateway.embeddings.bedrock_embedding_client import BedrockEmbeddingClient
 
+from app.observability.tracing import trace_step
+
+
 class RetrievalService:
     def __init__(
         self,
@@ -12,6 +15,7 @@ class RetrievalService:
         self.embedding_client = embedding_client
         self.chunk_repository = chunk_repository
 
+    @trace_step("retrieve_documents")
     async def retrieve(
         self,
         query: str,
@@ -19,7 +23,6 @@ class RetrievalService:
         scheme_name: str | None = None,
         document_type: str | None = None
     ) -> list[RetrievedChunk]:
-
         # Generate query embedding
         query_embedding = await self.embedding_client.generate(query)
 

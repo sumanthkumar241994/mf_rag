@@ -6,6 +6,8 @@ from app.retrieval.context_builder import ContextBuilder
 from app.llm_gateway.llm_gateway import LLMGateway
 from app.schemas.responses.advisor import AdvisorResponse, SourceResponse
 
+from app.observability.tracing import trace_workflow
+
 class AdvisorService:
     def __init__(
         self,
@@ -17,25 +19,21 @@ class AdvisorService:
         self.context_builder = context_builder
         self.llm_gateway = llm_gateway
     
-    async def ask(
+    @trace_workflow("advisor_chat")
+    async def chat(
         self,
-        query: str,
-        top_k: int = 10,
-        scheme_name: str | None = None,
-        document_type: str | None = None
-    ):
+        query: str
+    ) -> AdvisorResponse:
         chunks = await self.retrieval_service.retrieve(
             query=query,
-            top_k=top_k,
-            scheme_name=scheme_name,
-            document_type=document_type
+            top_k=10,
         )
 
         llm_context = self.context_builder.build(chunks)
 
         response = await self.llm_gateway.generate(
             LLMRequest(
-                query=query,
+                user_prompt=query,
                 system_prompt=ADVISOR_SYSTEM_PROMPT,
                 context=llm_context.context
             )
@@ -54,4 +52,3 @@ class AdvisorService:
                 for source_id, chunk in llm_context.source_map.items()
             ]
         )
-        response.answer

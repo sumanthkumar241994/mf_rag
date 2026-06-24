@@ -10,3 +10,6 @@ class SourceResponse(BaseModel):
 class AdvisorResponse(BaseModel):
     answer: str
     sources: list[SourceResponse]
+
+    chunk_count: int | None = None
+    response_time_ms: int | None = None

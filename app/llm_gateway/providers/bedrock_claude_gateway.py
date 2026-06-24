@@ -26,7 +26,7 @@ class AnthropicProvider(LLMProvider):
                     "role": "user",
                     "content": f"""
                     Question: 
-                    {request.query}
+                    {request.user_prompt}
 
                     Context:
                     {request.context}

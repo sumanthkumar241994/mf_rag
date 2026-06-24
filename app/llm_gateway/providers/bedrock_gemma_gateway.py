@@ -1,3 +1,4 @@
+import time
 import json
 import asyncio
 
@@ -5,9 +6,14 @@ from app.core.config.settings import settings
 from app.core.config.aws import AWS
 
 from app.dtos.llm.llm_request import LLMRequest
-from app.dtos.llm.llm_response import LLMResponse
+from app.dtos.llm.llm_response import LLMResponse, LLMUsage
 
 from app.llm_gateway.providers.base import LLMProvider
+
+from app.observability.tracing import trace_step
+import logging
+
+logger = logging.getLogger(__name__)
 
 class GemmaProvider(LLMProvider):
     MODEL_ID = settings.BEDROCK_GEMMA_MODEL_ID
@@ -15,6 +21,7 @@ class GemmaProvider(LLMProvider):
     def __init__(self):
         self.bedrock_client = AWS().bedrock_runtime
 
+    @trace_step("generate_answer")
     async def generate(self, request: LLMRequest) -> LLMResponse:
         body = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -26,7 +33,7 @@ class GemmaProvider(LLMProvider):
                     "role": "user",
                     "content": f"""
                     Question: 
-                    {request.query}
+                    {request.user_prompt}
 
                     Context:
                     {request.context}
@@ -34,9 +41,24 @@ class GemmaProvider(LLMProvider):
                 }
             ]
         }
-
+        start_time = time.perf_counter()
+        
         response = await asyncio.to_thread(self.bedrock_client.invoke_model,modelId=self.MODEL_ID, body=json.dumps(body))
-        response_body = json.loads(response['body'].read())
-        answer = response_body['choices'][0]['message']['content']
 
-        return LLMResponse(answer=answer, model=self.MODEL_ID)
+        latency_ms = round((time.perf_counter() - start_time)*1000)
+
+        response_body = json.loads(response['body'].read())
+        logger.info(f"Gemma API Response: {response_body}")
+        answer = response_body['choices'][0]['message']['content']
+        usage = response_body['usage']
+
+        return LLMResponse(
+            answer=answer, 
+            model=self.MODEL_ID,
+            usage=LLMUsage(
+                input_tokens=usage['prompt_tokens'],
+                output_tokens=usage['completion_tokens'],
+                total_tokens= usage['total_tokens']
+            ),
+            latency_ms=latency_ms
+        )

@@ -14,6 +14,8 @@ from app.api.router import api_router
 from app.core.database import AsyncSessionLocal, engine
 from app.api.dependencies import DBSession
 from app.observability import setup_logging
+
+from app.langfuse.client import langfuse_client
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,8 +38,11 @@ async def lifespan(app: FastAPI):
         logger.error("Database connection failed")
         raise
 
+    _ = langfuse_client
+
     yield
     await engine.dispose()
+    langfuse_client.flush()
     print("Shutting down...")
 
 def create_application() -> FastAPI:

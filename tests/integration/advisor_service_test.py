@@ -27,7 +27,7 @@ async def test_rag_to_claude():
 
         response = await gateway.generate(
                 LLMRequest(
-                    query='What are the risk factors?',
+                    user_prompt='What are the risk factors?',
                     context=llm_context.context,
                     system_prompt=ADVISOR_SYSTEM_PROMPT
                 )
