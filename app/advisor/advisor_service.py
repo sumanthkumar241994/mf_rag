@@ -56,13 +56,6 @@
 #         )
 
 
-from app.dtos.llm.llm_request import LLMRequest
-
-from app.prompts.system.advisor_system_prompt import ADVISOR_SYSTEM_PROMPT
-from app.retrieval.retrieval_service import RetrievalService
-from app.retrieval.context_builder import ContextBuilder
-from app.llm_gateway.llm_gateway import LLMGateway
-from app.schemas.responses.advisor import AdvisorResponse, SourceResponse
 from app.agents.advisor_agent import AdvisorAgent
 from app.dtos.agents.agent_response import AgentResponse
 
@@ -80,6 +73,6 @@ class AdvisorService:
         self,
         query: str
     ) -> AgentResponse:
-    
+
         return await self.advisor_agent.run(query=query)
         
