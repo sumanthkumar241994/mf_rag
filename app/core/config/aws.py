@@ -19,3 +19,7 @@ class AWS:
     @property
     def s3(self):
         return self.session.client('s3')
+
+    @property
+    def sqs(self):
+        return self.session.client('sqs')

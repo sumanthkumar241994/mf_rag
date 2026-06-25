@@ -9,6 +9,7 @@ from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_usage import LLMUsage
 from app.dtos.llm.llm_metrics import LLMMetrics
+from app.dtos.llm.llm_stream_response import LLMStreamResponse
 
 from app.llm_gateway.providers.base import LLMProvider
 
@@ -51,7 +52,8 @@ class GemmaProvider(LLMProvider):
 
         response_body = json.loads(response['body'].read())
         logger.info(f"Gemma API Response: {response_body}")
-        answer = response_body['choices'][0]['message']['content']
+        choice = response_body['choices'][0]
+        answer = choice['message']['content']
         usage = response_body['usage']
 
         return LLMResponse(
@@ -63,12 +65,13 @@ class GemmaProvider(LLMProvider):
             ),
             metrics = LLMMetrics(
                 model=self.MODEL_ID,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
+                finish_reason=choice.get('finish_reason')
             )
         )
 
     
-    async def stream(self, request: LLMRequest):
+    async def stream(self, request: LLMRequest, stream_response: LLMStreamResponse):
         body = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": request.max_tokens,
@@ -122,4 +125,26 @@ class GemmaProvider(LLMProvider):
             if "</reasoning>" in content:
                 continue
 
+            stream_response.answer += content
+
             yield content
+
+            # Final Chunk
+            invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
+
+            if invocation_metrics:
+                stream_response.usage = LLMUsage(
+                    input_tokens=invocation_metrics['inputTokenCount'],
+                    output_tokens=invocation_metrics['outputTokenCount'],
+                    total_tokens =invocation_metrics['inputTokenCount'] + invocation_metrics['outputTokenCount']
+                )
+
+                stream_response.metrics = LLMMetrics(
+                    model = self.MODEL_ID,
+                    latency_ms=invocation_metrics['invocationLatency'],
+                    first_token_latency_ms=invocation_metrics['firstByteLatency'],
+                    invocation_latency_ms=invocation_metrics['invocationLatency'],
+                    finish_reason=choices.get('finish_reason')
+                )
+
+

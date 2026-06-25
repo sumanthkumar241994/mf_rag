@@ -9,8 +9,9 @@ from app.dtos.llm.llm_metrics import LLMMetrics
 
 @dataclass(slots=True)
 class LLMGenerationCompletedEvent(BaseEvent):
-    request: LLMRequest
-    answer: str
-    usage: LLMUsage
-    metrics: LLMMetrics
+    request: LLMRequest | None = None
+    answer: str | None = None
+    usage: LLMUsage | None = None
+    metrics: LLMMetrics | None = None
 
+    event_type: str = 'llm.generation.completed'
