@@ -8,6 +8,6 @@ from app.events.models.event_priority import EventPriority
 class BaseEvent:
     event_id: str = field(default_factory=lambda: str(uuid4()))
     correlation_id: str = field(default_factory=lambda: str(uuid4()))
-    event_type: str = ""
-    priority: EventPriority = EventPriority.MEDIUM
+    event_type: str = "base.event"
+    priority: EventPriority = EventPriority.MEDIUM.value
     occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

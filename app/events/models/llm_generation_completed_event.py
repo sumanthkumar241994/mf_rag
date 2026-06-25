@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from app.events.models.base_event import BaseEvent
+from app.events.models.event_priority import EventPriority
 
 from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_usage import LLMUsage
@@ -13,5 +14,5 @@ class LLMGenerationCompletedEvent(BaseEvent):
     answer: str | None = None
     usage: LLMUsage | None = None
     metrics: LLMMetrics | None = None
-
+    priority: EventPriority = EventPriority.MEDIUM.value
     event_type: str = 'llm.generation.completed'

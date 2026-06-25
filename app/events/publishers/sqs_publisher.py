@@ -2,6 +2,7 @@ import asyncio
 import json
 from dataclasses import asdict
 from datetime import datetime
+from enum import Enum
 
 from app.core.config.aws import AWS
 from app.core.config.settings import settings
@@ -15,9 +16,9 @@ class SQSEventPublisher(EventPublisher):
     def __init__(self):
         self.sqs_client = AWS().sqs
         self.queue_urls = {
-            EventPriority.HIGH : settings.HIGH_PRIORITY_QUEUE_URL,
-            EventPriority.MEDIUM: settings.MEDIUM_PRIORITY_QUEUE_URL,
-            EventPriority.LOW: settings.LOW_PRIORITY_QUEUE_URL
+            EventPriority.HIGH.value : settings.HIGH_PRIORITY_QUEUE_URL,
+            EventPriority.MEDIUM.value: settings.MEDIUM_PRIORITY_QUEUE_URL,
+            EventPriority.LOW.value: settings.LOW_PRIORITY_QUEUE_URL
         }
 
     async def publish(self, event: BaseEvent):
@@ -57,21 +58,24 @@ class SQSEventPublisher(EventPublisher):
         Converts dataclass events into JSON serializable dict
         """
         payload = asdict(event)
-        return self._convert_datetime(payload)
+        return self._serialize_value(payload)
 
     
-    def _convert_datetime(self, value):
+    def _serialize_value(self, value):
         if isinstance(value, datetime):
             return value.isoformat()
 
+        if isinstance(value, Enum):
+            return value.value
+
         if isinstance(value, dict):
             return {
-                key: self._convert_datetime(val) for key, val in value.items() 
+                key: self._serialize_value(val) for key, val in value.items() 
             }
         
         if isinstance(value, list):
             return [
-                self._convert_datetime(item) for item in value
+                self._serialize_value(item) for item in value
             ]
         
         return value

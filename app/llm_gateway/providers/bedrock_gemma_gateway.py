@@ -116,18 +116,9 @@ class GemmaProvider(LLMProvider):
 
             content = delta.get("content")
 
-            if not content:
-                continue
-
-            if "<reasoning>" in content:
-                continue
-
-            if "</reasoning>" in content:
-                continue
-
-            stream_response.answer += content
-
-            yield content
+            if "<reasoning>" not in content and "</reasoning>" not in content :
+                stream_response.answer += content
+                yield content
 
             # Final Chunk
             invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
@@ -144,7 +135,7 @@ class GemmaProvider(LLMProvider):
                     latency_ms=invocation_metrics['invocationLatency'],
                     first_token_latency_ms=invocation_metrics['firstByteLatency'],
                     invocation_latency_ms=invocation_metrics['invocationLatency'],
-                    finish_reason=choices.get('finish_reason')
+                    finish_reason=choices[0].get('finish_reason')
                 )
 
 
