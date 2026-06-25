@@ -1,3 +1,4 @@
+from typing import AsyncIterator
 from abc import ABC, abstractmethod
 from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
@@ -9,4 +10,11 @@ class LLMProvider(ABC):
         self,
         request: LLMRequest
     ) -> LLMResponse:
+        pass
+
+    @abstractmethod
+    async def stream(
+        self,
+        request: LLMRequest
+    ) -> AsyncIterator[str]:
         pass

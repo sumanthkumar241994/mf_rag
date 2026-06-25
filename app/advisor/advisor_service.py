@@ -55,6 +55,7 @@
 #             ]
 #         )
 
+from typing import AsyncIterator
 
 from app.agents.advisor_agent import AdvisorAgent
 from app.dtos.agents.agent_response import AgentResponse
@@ -75,4 +76,10 @@ class AdvisorService:
     ) -> AgentResponse:
 
         return await self.advisor_agent.run(query=query)
-        
+    
+    async def stream(
+        self,
+        query: str
+    ) -> AsyncIterator[str]:
+        async for token in self.advisor_agent.stream(query):
+            yield token

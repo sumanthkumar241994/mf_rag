@@ -37,3 +37,12 @@ class AdvisorWorkflow:
 
     async def invoke(self, query: str) -> AdvisorState:
         return await self.graph.ainvoke({"query": query})
+
+    async def stream(self, query: str):
+        state: AdvisorState = {"query": query}
+
+        state.update(await self.document_search_node(state))
+        state.update(await self.build_context_node(state))
+        # stream answer
+        async for token in self.generate_answer_node.stream(state):
+            yield token

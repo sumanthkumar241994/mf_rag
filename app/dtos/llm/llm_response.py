@@ -1,15 +1,9 @@
 from dataclasses import dataclass
-
-
-@dataclass(slots=True)
-class LLMUsage:
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    total_tokens: int | None = None
+from app.dtos.llm.llm_usage import LLMUsage
+from app.dtos.llm.llm_metrics import LLMMetrics
 
 @dataclass(slots=True)
 class LLMResponse:
     answer: str
-    model: str
     usage: LLMUsage | None = None
-    latency_ms: int | None = None
+    metrics: LLMMetrics | None = None

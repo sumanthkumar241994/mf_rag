@@ -6,7 +6,9 @@ from app.core.config.settings import settings
 from app.core.config.aws import AWS
 
 from app.dtos.llm.llm_request import LLMRequest
-from app.dtos.llm.llm_response import LLMResponse, LLMUsage
+from app.dtos.llm.llm_response import LLMResponse
+from app.dtos.llm.llm_usage import LLMUsage
+from app.dtos.llm.llm_metrics import LLMMetrics
 
 from app.llm_gateway.providers.base import LLMProvider
 
@@ -54,11 +56,70 @@ class GemmaProvider(LLMProvider):
 
         return LLMResponse(
             answer=answer, 
-            model=self.MODEL_ID,
             usage=LLMUsage(
                 input_tokens=usage['prompt_tokens'],
                 output_tokens=usage['completion_tokens'],
                 total_tokens= usage['total_tokens']
             ),
-            latency_ms=latency_ms
+            metrics = LLMMetrics(
+                model=self.MODEL_ID,
+                latency_ms=latency_ms
+            )
         )
+
+    
+    async def stream(self, request: LLMRequest):
+        body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "system": request.system_prompt,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"""
+                    Question: 
+                    {request.user_prompt}
+
+                    Context:
+                    {request.context}
+                    """
+                }
+            ]
+        }
+
+        response = await asyncio.to_thread(
+            self.bedrock_client.invoke_model_with_response_stream,
+            modelId=self.MODEL_ID,
+            body=json.dumps(body)
+        )
+
+        stream = response['body']
+
+        for event in stream:
+            chunk = event.get('chunk')
+            if not chunk:
+                continue
+
+            payload = json.loads(chunk['bytes'].decode('utf-8'))
+
+            choices = payload.get('choices', [])
+            if not choices:
+                continue
+
+            delta = choices[0].get("delta",{})
+            if not delta:
+                continue
+
+            content = delta.get("content")
+
+            if not content:
+                continue
+
+            if "<reasoning>" in content:
+                continue
+
+            if "</reasoning>" in content:
+                continue
+
+            yield content

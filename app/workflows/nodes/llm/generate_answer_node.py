@@ -29,3 +29,13 @@ class GenerateAnswerNode:
         )
 
         return {"answer": llm_response.answer}
+
+    async def stream(self, state: AdvisorState):
+        request=LLMRequest(
+            user_prompt=state['query'],
+            system_prompt=ADVISOR_SYSTEM_PROMPT,
+            context=state['context']
+        )
+
+        async for token in self.llm_gateway.stream(request):
+            yield token
