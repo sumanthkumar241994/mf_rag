@@ -16,3 +16,37 @@ class LLMGenerationCompletedEvent(BaseEvent):
     metrics: LLMMetrics | None = None
     priority: EventPriority = EventPriority.MEDIUM.value
     event_type: str = 'llm.generation.completed'
+
+    @classmethod
+    def from_dict(cls, payload: dict) -> "LLMGenerationCompletedEvent":
+        return cls(
+            event_id=payload["event_id"],
+            correlation_id=payload["correlation_id"],
+            trace_id=payload.get("trace_id"),
+            parent_observation_id=payload.get("parent_observation_id"),
+            occurred_at=payload["occurred_at"],
+            event_type=payload["event_type"],
+            priority=EventPriority(payload["priority"]),
+
+            request=(
+                LLMRequest(**payload["request"])
+                if payload.get("request")
+                else None
+            ),
+
+            answer=payload.get("answer"),
+
+            usage=(
+                LLMUsage(**payload["usage"])
+                if payload.get("usage")
+                else None
+            ),
+
+            metrics=(
+                LLMMetrics(**payload["metrics"])
+                if payload.get("metrics")
+                else None
+            ),
+        )
+
+

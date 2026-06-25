@@ -3,6 +3,8 @@ from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_stream_response import LLMStreamResponse
 
+from langfuse import get_client
+
 from app.events.models.llm_generation_completed_event import LLMGenerationCompletedEvent
 from app.llm_gateway.providers.base import LLMProvider
 
@@ -30,8 +32,15 @@ class LLMGateway:
         #     usage=response.usage,
         #     metrics=response.metrics
         # )
+        langfuse = get_client()
+        
+        trace_id = langfuse.get_current_trace_id()
+        parent_observation_id = langfuse.get_current_observation_id()
+
         await self.sqs_publisher.publish(
             LLMGenerationCompletedEvent(
+                trace_id=trace_id,
+                parent_observation_id=parent_observation_id,
                 request=request,
                 answer=response.answer,
                 usage=response.usage,
@@ -52,8 +61,15 @@ class LLMGateway:
             output_tokens=stream_repsonse.usage.output_tokens
         )
 
+        langfuse = get_client()
+        
+        trace_id = langfuse.get_current_trace_id()
+        parent_observation_id = langfuse.get_current_observation_id()
+
         await self.sqs_publisher.publish(
             LLMGenerationCompletedEvent(
+                trace_id=trace_id,
+                parent_observation_id=parent_observation_id,
                 request=request,
                 answer=stream_repsonse.answer,
                 usage=stream_repsonse.usage,

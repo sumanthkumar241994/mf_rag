@@ -77,6 +77,7 @@ class AdvisorService:
 
         return await self.advisor_agent.run(query=query)
     
+    @trace_workflow("advisor_stream_chat")
     async def stream(
         self,
         query: str
