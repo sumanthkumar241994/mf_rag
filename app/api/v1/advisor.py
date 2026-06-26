@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from app.schemas.requests.advisor import AdvisorRequest
 
@@ -17,3 +18,20 @@ async def chat(request: AdvisorRequest, advisor_service: AdvisorService=Depends(
     )
 
     return advisor_response
+
+@router.post("/chat/stream")
+async def stream_chat(request: AdvisorRequest, advisor_service: AdvisorService=Depends(get_advisor_service)):
+    async def event_generator():
+        async for token in advisor_service.stream(query=request.query):
+            yield f"data: {token}\n\n"
+        yield "event:done\ndata: [DONE]\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )

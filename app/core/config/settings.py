@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str
     LANGFUSE_BASE_URL: str
 
+    HIGH_PRIORITY_QUEUE_URL: str
+    MEDIUM_PRIORITY_QUEUE_URL: str
+    LOW_PRIORITY_QUEUE_URL: str
+
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 

@@ -70,6 +70,7 @@
 
 
 import time
+from typing import AsyncIterator
 
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
 from app.dtos.agents.agent_response import AgentResponse
@@ -93,3 +94,7 @@ class AdvisorAgent:
             chunk_count=len(state['chunks']),
             response_time_ms=response_time_ms
         )
+    
+    async def stream(self, query: str) -> AsyncIterator[str]:
+        async for token in self.advisor_workflow.stream(query=query):
+            yield token

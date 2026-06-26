@@ -19,7 +19,7 @@ class RetrievalService:
     async def retrieve(
         self,
         query: str,
-        top_k: int = 10,
+        top_k: int = 5,
         scheme_name: str | None = None,
         document_type: str | None = None
     ) -> list[RetrievedChunk]:
