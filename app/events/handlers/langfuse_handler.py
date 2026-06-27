@@ -5,6 +5,9 @@ from langfuse import Langfuse
 from app.events.handlers.base import EventHandler
 from app.events.models.llm_generation_completed_event import LLMGenerationCompletedEvent
 
+import logging
+logger = logging.getLogger(__name__)
+
 class LangfuseHandler(EventHandler[LLMGenerationCompletedEvent]):
     """
     Publishes complete LLM generations to Langfuse
@@ -50,4 +53,4 @@ class LangfuseHandler(EventHandler[LLMGenerationCompletedEvent]):
             }
 
         ) as generation:
-            pass
+            print(f"Generation: {generation}")

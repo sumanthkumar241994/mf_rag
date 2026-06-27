@@ -25,4 +25,4 @@ class EventDispatcher:
         if not handlers:
             return
 
-        await asyncio.gather(*(handler.handle(event) for handler in handlers))
+        await asyncio.gather(*(handler.handle(event) for handler in handlers), return_exceptions=True)
