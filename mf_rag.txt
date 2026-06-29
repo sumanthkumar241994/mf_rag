@@ -2421,3 +2421,1350 @@ s3 -> mf-documents -> document insert -> eventbridge -> lambda -> aws glue -> ba
 
 
 
+Phase 1: Langfuse (Today)
+
+Do this before LangGraph.
+
+Current flow:
+
+Advisor API
+ ↓
+Advisor Service
+ ↓
+Retrieval
+ ↓
+Claude
+
+Instrument:
+
+retrieve
+context_builder
+generate
+
+Folder:
+
+observability/
+├── langfuse_client.py
+└── tracing.py
+
+Dependency:
+
+pip install langfuse
+
+Create:
+
+from langfuse import Langfuse
+
+langfuse = Langfuse(
+    public_key=settings.LANGFUSE_PUBLIC_KEY,
+    secret_key=settings.LANGFUSE_SECRET_KEY,
+    host=settings.LANGFUSE_HOST,
+)
+
+Then wrap:
+
+@observe()
+async def retrieve():
+    ...
+
+and
+
+@observe()
+async def generate():
+    ...
+
+Goal:
+
+Every Advisor request visible in Langfuse
+
+before adding agents.
+
+Phase 2: Tool Registry
+
+Now create the permanent architecture.
+
+Folder:
+
+tools/
+
+├── registry/
+│   └── tool_registry.py
+│
+├── executor/
+│   └── tool_executor.py
+│
+├── definitions/
+│   └── tool_definition.py
+│
+└── implementations/
+
+ToolDefinition:
+
+@dataclass(slots=True)
+class ToolDefinition:
+
+    name: str
+
+    description: str
+
+    timeout_seconds: int
+
+    enabled: bool = True
+
+Registry:
+
+class ToolRegistry:
+
+    def register(
+        self,
+        tool: ToolDefinition
+    ):
+        ...
+
+    def get(
+        self,
+        name: str
+    ):
+        ...
+Phase 3: First Tool
+
+Create:
+
+tools/implementations/document_search.py
+
+Interface:
+
+class DocumentSearchTool:
+
+    async def execute(
+        self,
+        query: str,
+        top_k: int = 10
+    ):
+        ...
+
+Internally:
+
+return await retrieval_service.retrieve(
+    query=query,
+    top_k=top_k
+)
+
+This is your first real tool.
+
+Phase 4: Tool Executor
+
+Create:
+
+class ToolExecutor:
+
+    async def execute(
+        self,
+        tool_name: str,
+        arguments: dict
+    ):
+        ...
+
+Flow:
+
+Tool Name
+ ↓
+Registry Lookup
+ ↓
+Validation
+ ↓
+Execute Tool
+ ↓
+Result
+
+This becomes the foundation for:
+
+document_search
+get_nav
+compare_funds
+calculate_xirr
+goal_planner
+
+later.
+
+Phase 5: Advisor Agent
+
+Now create:
+
+agents/
+└── advisor_agent.py
+
+Example:
+
+class AdvisorAgent:
+
+    async def run(
+        self,
+        query: str
+    ):
+        ...
+
+Flow:
+
+Advisor Agent
+ ↓
+document_search tool
+ ↓
+context builder
+ ↓
+LLM
+ ↓
+response
+
+Notice:
+
+Agent
+ ↓
+Tool
+
+NOT
+
+Agent
+ ↓
+Retrieval Service
+
+This distinction matters.
+
+Phase 6: LangGraph
+
+Only now.
+
+Folder:
+
+workflows/
+└── advisor_workflow.py
+
+State:
+
+class AdvisorState(TypedDict):
+    query: str
+    chunks: list
+    context: str
+    answer: str
+
+Nodes:
+
+START
+ ↓
+document_search
+ ↓
+build_context
+ ↓
+generate_answer
+ ↓
+END
+
+Only 3 nodes.
+
+Do NOT build planners, supervisors, or multi-agent graphs.
+
+Phase 7: SSE Streaming
+
+After LangGraph.
+
+Reason:
+
+Current:
+
+generate()
+ ↓
+return answer
+
+Later:
+
+generate_stream()
+ ↓
+yield token
+ ↓
+yield token
+ ↓
+yield token
+
+You only need to change the LLM layer.
+
+The rest of the architecture remains unchanged.
+
+What I Would Build This Week
+Day 1
+Langfuse
+Day 2
+Tool Registry
+Tool Executor
+Day 3
+document_search tool
+Advisor Agent
+Day 4
+LangGraph Advisor Workflow
+Day 5
+SSE Streaming
+
+At the end of Day 5 you'll have:
+
+FastAPI
+↓
+LangGraph
+↓
+Advisor Agent
+↓
+Tool Registry
+↓
+document_search Tool
+↓
+Retrieval
+↓
+Claude
+↓
+Langfuse
+
+which is the first version that genuinely looks like an enterprise Agentic Mutual Fund Advisor rather than a RAG chatbot.
+
+-----------
+
+1. Langfuse
+2. Tool Registry
+3. document_search tool
+4. Advisor Agent
+5. Advisor Workflow (LangGraph)
+6. SSE Streaming
+
+--------
+# tools/definitions/tool_definition.py
+
+from dataclasses import dataclass
+
+
+@dataclass(slots=True)
+class ToolDefinition:
+    name: str
+    description: str
+    timeout_seconds: int = 30
+    enabled: bool = True
+
+Keep it small initially.
+
+Later you'll add:
+
+permissions
+risk_level
+version
+input_schema
+output_schema
+
+
+-
+
+I would not add yet:
+
+input_schema
+output_schema
+risk_level
+rate_limit
+cost_per_call
+approval_required
+because you'll spend time building infrastructure that won't be used in the next 15 days.
+---------
+
+Architecture After This
+Tool Registry
+    ↓
+
+document_search
+    ↓
+
+Retrieval Service
+    ↓
+
+Chunk Repository
+
+This is your first production tool.
+
+What NOT To Build Yet
+
+Don't add:
+
+Permissions
+Rate Limits
+JSON Schema Validation
+Risk Levels
+Versioning
+Tool Categories
+
+yet.
+
+You'll only have:
+
+document_search
+
+for the next few days.
+
+Keep it simple.
+
+Next Step After Tool Registry
+
+Immediately after this works:
+
+Advisor Agent
+ ↓
+Tool Executor
+ ↓
+document_search
+ ↓
+LLM
+
+At that point you'll have:
+
+Agent
+↓
+Tool
+↓
+Retrieval
+↓
+LLM
+
+
+---------
+Step 6: Tool Executor
+
+Create:
+
+# tools/executor/tool_executor.py
+class ToolExecutor:
+
+    def __init__(
+        self,
+        tool_registry
+    ):
+        self.tool_registry = tool_registry
+
+    async def execute(
+        self,
+        tool_name: str,
+        **kwargs
+    ):
+        tool = self.tool_registry.get_tool(
+            tool_name
+        )
+
+        return await tool.execute(
+            **kwargs
+        )
+
+Simple.
+
+Don't add retries/timeouts yet.
+
+-----------
+Tool register file
+
+I would not add yet:
+
+Permissions
+JSON Schema Validation
+Rate Limiting
+Tool Version Resolution
+Dynamic Discovery
+
+Those become relevant when you have 10+ tools and multiple agents.
+
+This registry is sufficient for:
+
+Advisor Agent
+Tool Executor
+LangGraph
+Langfuse
+Future Portfolio Agent
+Future Planning Agent
+
+and can remain unchanged for a long time.
+--------------
+
+Future Evolution
+
+Later, without changing callers, you can add:
+
+ToolExecutor
+├── Validation
+├── Permissions
+├── Timeout Handling
+├── Retries
+├── Langfuse Tracing
+├── Audit Logging
+└── Cost Tracking
+
+-----------
+
+Then your GenerateAnswerNode needs:
+
+async def stream(
+    self,
+    state: AdvisorState,
+):
+    request = LLMRequest(
+        system_prompt=ADVISOR_SYSTEM_PROMPT,
+        user_prompt=state["query"],
+        context=state["context"],
+    )
+
+    async for token in self.llm_gateway.stream(
+        request
+    ):
+        yield token
+
+This approach is intentionally simple:
+
+LangGraph → normal execution
+Workflow.stream() → token streaming
+
+Later, if you want advanced LangGraph event streaming, you can move to:
+
+graph.astream()
+graph.astream_events()
+
+but for a production MVP in 15 days, the above implementation is much easier to debug and works perfectly with SSE.
+
+------------
+I completely agree. In fact, this is the architecture I would freeze for the project.
+
+The provider should only know:
+
+```text
+Request
+↓
+Bedrock API
+↓
+Response
+```
+
+Nothing else.
+
+No:
+
+* Langfuse
+* Cost calculation
+* Token collection
+* Logging
+* Metrics
+* Business logic
+
+---
+
+# Enterprise Layering
+
+```text
+API
+ ↓
+Service
+ ↓
+Agent
+ ↓
+Workflow
+ ↓
+LLMGateway  ← Cross-cutting concerns
+ ↓
+Provider    ← Bedrock/OpenAI/Azure only
+ ↓
+Model
+```
+
+---
+
+# Responsibilities
+
+## Provider
+
+Only responsible for:
+
+```python
+async def generate(...)
+async def stream(...)
+```
+
+It knows:
+
+* Model payload
+* Model response
+* Streaming protocol
+
+It should never import:
+
+```python
+langfuse
+logging
+metrics
+```
+
+---
+
+## LLMGateway
+
+Responsible for everything around the provider.
+
+```text
+Tracing
+Streaming collection
+Token accounting
+Latency
+Cost calculation
+Observability
+Retry
+Fallback
+Caching (future)
+```
+
+This is exactly why you created `LLMGateway`.
+
+---
+
+# I would organize it like this
+
+```text
+llm_gateway/
+
+├── llm_gateway.py          ← orchestration
+│
+├── providers/
+│   ├── anthropic_provider.py
+│   ├── openai_provider.py
+│   └── nova_provider.py
+│
+├── streaming/
+│   ├── stream_collector.py
+│   └── stream_event.py
+│
+├── metrics/
+│   ├── token_usage.py
+│   ├── cost_calculator.py
+│   └── latency.py
+│
+└── pricing/
+    └── model_pricing.py
+```
+
+---
+
+# LLMGateway.generate()
+
+Eventually it should look like this:
+
+```text
+Start timer
+        │
+        ▼
+Call provider.generate()
+        │
+        ▼
+Collect usage
+        │
+        ▼
+Calculate cost
+        │
+        ▼
+Update Langfuse
+        │
+        ▼
+Return response
+```
+
+---
+
+# LLMGateway.stream()
+
+Likewise:
+
+```text
+Start timer
+        │
+        ▼
+Create StreamCollector
+        │
+        ▼
+Provider.stream()
+        │
+        ▼
+Collect tokens
+        │
+        ▼
+Yield tokens
+        │
+        ▼
+Calculate latency
+        │
+        ▼
+Calculate cost
+        │
+        ▼
+Update Langfuse
+        │
+        ▼
+Finish
+```
+
+---
+
+# Cost Calculator
+
+I'd even create this now, although it can return zero initially.
+
+```python
+class CostCalculator:
+
+    def calculate(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> float:
+        ...
+```
+
+Later you'll have dashboards like:
+
+```text
+Advisor Agent
+
+Input Tokens : 832
+Output Tokens: 541
+Latency      : 1.82s
+Cost         : $0.0032
+```
+
+Interviewers love seeing this.
+
+---
+
+# StreamCollector
+
+I'd also evolve it slightly:
+
+```python
+@dataclass(slots=True)
+class StreamCollector:
+
+    tokens: list[str] = field(default_factory=list)
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    latency_ms: int = 0
+
+    cost: float = 0.0
+
+    model: str = ""
+
+    finish_reason: str | None = None
+
+    def add_token(self, token: str):
+        self.tokens.append(token)
+
+    @property
+    def answer(self) -> str:
+        return "".join(self.tokens)
+```
+
+Notice it has **no Langfuse dependency**.
+
+---
+
+# Why this is Enterprise
+
+Almost every production GenAI platform eventually has an "LLM Platform" team. That team's responsibility is everything **around** the model:
+
+```text
+Application
+        │
+        ▼
+LLM Gateway
+ ├── Tracing
+ ├── Cost
+ ├── Retry
+ ├── Fallback
+ ├── Metrics
+ ├── Streaming
+ ├── Token Accounting
+ ├── Caching
+ ├── Rate Limiting
+ └── Model Routing
+        │
+        ▼
+Providers
+```
+
+Your application code (agents, workflows, services) should never care about these concerns.
+
+**I would keep this design.** It will scale well as you add more models and capabilities over the next phases of your project.
+-------------
+
+Architecture
+LLMGateway
+    │
+    ├── StreamCollector
+    │
+    ├── CostCalculator
+    │
+    ├── RetryPolicy
+    │
+    └── update_generation(...)
+
+Provider knows nothing.
+
+---------
+
+
+This gives you the enterprise separation you're aiming for while avoiding another abstraction layer (StreamEvent) that doesn't add much value for your current project.
+
+stream event also we can add later
+
+----
+
+
+Enterprise Architecture
+
+This is what large GenAI systems actually converge to.
+
+                API
+                 │
+                 ▼
+             LangGraph
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+   Advisor Agent      Planner
+        │                 │
+        └────────┬────────┘
+                 ▼
+          LLM Runtime
+        (Execution Layer)
+                 │
+      ┌──────────┼──────────┐
+      ▼          ▼          ▼
+ Provider    Tool Runtime  Memory
+                 │
+                 ▼
+            Django APIs
+
+Notice something.
+
+Everything interesting happens inside the runtime.
+
+Runtime responsibilities
+
+The runtime owns
+
+Retry
+
+Fallback
+
+Streaming
+
+Tracing
+
+Metrics
+
+Cost
+
+Audit
+
+Prompt logging
+
+Response logging
+
+Safety
+
+Caching
+
+Rate limiting
+
+Circuit breakers
+
+Model routing
+
+---------
+
+The Principle I Would Freeze
+
+I would establish this rule across the platform:
+
+If another user request depends on the result, keep it synchronous.
+
+If it's only for observability, compliance, analytics, or optimization, make it asynchronous.
+
+That gives you a system that is both responsive and correct.
+
+For your future architecture, I'd expect:
+
+Conversation state: synchronous (so follow-up questions always work).
+Short-term memory cache (Redis): synchronous if used by the next request.
+Long-term memory processing: asynchronous.
+Langfuse, audit, metrics, evaluation, cost: asynchronous.
+
+This hybrid approach is what you'll find in mature enterprise AI systems because it balances user experience with scalability.
+
+------------
+
+I think we've now converged on an architecture that is genuinely enterprise-grade. Looking at your project as a whole (ingestion, retrieval, LangGraph, agents, observability, workers), I wouldn't make any major structural changes beyond this.
+
+## Final Architecture
+
+```text
+                           Users
+                             │
+                             ▼
+                    ALB / API Gateway
+                             │
+                             ▼
+                     ECS Service (API)
+                 ┌─────────────────────┐
+                 │     FastAPI         │
+                 │                     │
+                 │ Advisor API         │
+                 │ Comparison API      │
+                 │ Planning API        │
+                 │                     │
+                 │ LangGraph           │
+                 │ Agents              │
+                 │ LLM Runtime         │
+                 └─────────┬───────────┘
+                           │
+                    Bedrock / Tools
+                           │
+                           ▼
+                  Publish Domain Event
+                           │
+                           ▼
+                          SQS
+                           │
+        ┌──────────────────┴──────────────────┐
+        ▼                                     ▼
+ ECS Event Worker Service              Future Workers
+ ┌─────────────────────┐          ┌────────────────────┐
+ │ Event Consumer      │          │ Evaluation Worker  │
+ │ Dispatcher          │          │ Scheduler Worker   │
+ │                     │          │ Notification Worker│
+ │ Langfuse Handler    │          └────────────────────┘
+ │ Audit Handler       │
+ │ Analytics Handler   │
+ │ Memory Handler      │
+ └─────────────────────┘
+```
+
+---
+
+## Responsibilities
+
+### API Service
+
+Only responsible for:
+
+* Authentication
+* Agent execution
+* LangGraph
+* Retrieval
+* Tool execution
+* LLM Runtime
+* Conversation state (critical path)
+* Publishing events
+
+It should **never** directly call:
+
+* Langfuse
+* Audit repository
+* Analytics
+* Notification service
+
+---
+
+### LLM Runtime
+
+Only responsible for:
+
+* Provider selection
+* Streaming
+* Retry
+* Fallback
+* Cost calculation
+* Metrics collection
+* Publishing `LLMGenerationCompletedEvent`
+
+Nothing else.
+
+---
+
+### Provider
+
+Only responsible for:
+
+```text
+Request
+↓
+
+Bedrock/OpenAI
+
+↓
+
+Response
+```
+
+No tracing.
+
+No audit.
+
+No repositories.
+
+No business logic.
+
+---
+
+### Worker Service
+
+Consumes events from SQS.
+
+```text
+Receive Message
+
+↓
+
+Deserialize Event
+
+↓
+
+Dispatcher
+
+↓
+
+Handlers
+
+↓
+
+Delete Message
+```
+
+---
+
+### Handlers
+
+Each handler has one responsibility.
+
+```text
+LangfuseHandler
+AuditHandler
+AnalyticsHandler
+MemoryHandler
+EvaluationHandler
+NotificationHandler
+```
+
+Open/Closed Principle: adding a new concern means adding a new handler, not modifying the runtime.
+
+---
+
+## Conversation Memory
+
+One important rule we established:
+
+### Synchronous
+
+```text
+Conversation
+Messages
+Redis cache (if used)
+```
+
+because the next request depends on them.
+
+### Asynchronous
+
+```text
+Conversation embedding
+Conversation summarization
+Knowledge graph
+Analytics
+```
+
+because they're enhancements rather than prerequisites.
+
+---
+
+## Deployment
+
+One repository.
+
+One Docker image.
+
+Multiple ECS services.
+
+```text
+mf-rag
+
+Docker Image
+
+↓
+
+ECS Service
+    API
+
+↓
+
+ECS Service
+    Event Worker
+
+↓
+
+ECS Service
+    Ingestion Worker
+
+↓
+
+ECS Service
+    Scheduler Worker (future)
+
+↓
+
+ECS Service
+    Evaluation Worker (future)
+```
+
+Only the startup command differs.
+
+---
+
+## Benefits
+
+As your platform grows to include:
+
+* Advisor Agent
+* Comparison Agent
+* Planning Agent
+* Portfolio Agent
+* Planner
+* Tool Calling
+* MCP
+* Long-term Memory
+* Human Approval
+* Evaluations
+* Compliance Logging
+
+the architecture remains stable.
+
+The only thing you'll continue adding is:
+
+```text
+New Event
+
+↓
+
+New Handler
+
+↓
+
+(Optional) New Worker
+```
+
+without touching the LLM Runtime or your agents.
+
+---
+
+## What I Would Build Next
+
+Now that the architecture is frozen, I'd implement these components in order:
+
+1. **Event Models**
+
+   * `LLMGenerationCompletedEvent`
+   * Base event types
+
+2. **SQS Publisher**
+
+   * Runtime publishes events
+
+3. **Worker Service**
+
+   * Poll SQS
+   * Deserialize events
+   * Dispatch
+
+4. **Dispatcher**
+
+   * Event → Handler routing
+
+5. **Langfuse Handler**
+
+   * Move your current `update_generation()` logic here
+
+6. **Audit Handler**
+
+   * Persist audit records
+
+After that, your runtime becomes completely independent of observability and persistence concerns, which is exactly the separation you'd expect in a mature enterprise AI platform.
+
+------------
+
+I would introduce an EventContext instead
+
+Rather than TraceContext, I'd define a context that travels with every event.
+
+# app/events/models/event_context.py
+
+from dataclasses import dataclass
+
+
+@dataclass(slots=True)
+class EventContext:
+    user_id: str | None = None
+
+    conversation_id: str | None = None
+
+    session_id: str | None = None
+
+    tenant_id: str | None = None
+
+    agent_name: str | None = None
+
+    workflow_name: str | None = None
+
+    trace_id: str | None = None
+
+    parent_observation_id: str | None = None
+
+Then BaseEvent becomes:
+
+@dataclass(slots=True)
+class BaseEvent:
+
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+
+    correlation_id: str = field(default_factory=lambda: str(uuid4()))
+
+    context: EventContext | None = None
+
+    event_type: str = "base.event"
+
+    priority: EventPriority = EventPriority.MEDIUM
+
+    occurred_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+---------------
+
+✅ EventHandler (base class)
+✅ EventDispatcher
+✅ SQSConsumer
+✅ EventWorker
+✅ LangfuseHandler
+✅ Test end-to-end (SQS → Worker → Langfuse)
+
+
+-------------
+I would now freeze the event infrastructure and consider it part of your platform. Then build these handlers in this order:
+
+ConversationHandler – saves conversations and messages.
+AuditHandler – immutable audit trail.
+AnalyticsHandler – request counts, latency, token usage, cost, success/failure.
+MemoryHandler – extracts and stores long-term memory.
+EvaluationHandler – computes RAG/LLM quality metrics.
+
+------------
+
+My recommendation for your project
+
+Given your goal of building a Principal Engineer-level enterprise architecture, I would implement:
+
+Redis: Hot conversational context (last 20–50 messages, active sessions, planner state).
+PostgreSQL: Durable conversation and message store (system of record).
+SQS/Event Platform: Side effects only (Langfuse, audit, analytics, memory extraction, evaluation, notifications).
+
+This separation gives you the best of all worlds:
+
+Fast runtime context retrieval.
+Durable conversation history.
+Scalable asynchronous processing.
+A design that's easy to explain in interviews because each component has a single, well-defined responsibility.
+
+-----------
+
+
+                FastAPI
+
+                   │
+
+             AdvisorService
+                   │
+            ComparisonService
+                   │
+             PlanningService
+                   │
+          PortfolioService
+                   │
+             TaxService
+
+                   │
+
+              Orchestrator
+        ┌──────────┼───────────┐
+        │          │           │
+Conversation   EventBus   Observability
+   Service
+
+                   │
+
+               BaseAgent
+        ┌──────────┼───────────┐
+        │          │           │
+   Advisor     Comparison   Planning
+
+                   │
+
+              LangGraph Workflow
+
+                   │
+
+             Retrieval / Tools
+
+                   │
+
+              LLM Gateway
+
+                   │
+
+               Bedrock Models
+
+--------
+
+| Component               | Responsibility                |
+| ----------------------- | ----------------------------- |
+| **AdvisorService**      | API-specific business service |
+| **Orchestrator**        | Runtime orchestration         |
+| **ConversationService** | Conversation lifecycle        |
+| **Agent**               | Domain intelligence           |
+| **Workflow**            | LangGraph graph               |
+| **Tool Registry**       | Tool execution                |
+| **LLM Gateway**         | Model abstraction             |
+| **Event Platform**      | Async side effects            |
+
+
+---------
+app/
+
+├── orchestrator/
+│   └── orchestrator.py
+│
+├── agents/
+│   ├── base_agent.py
+│   ├── advisor_agent.py
+│   ├── comparison_agent.py
+│   └── ...
+│
+├── dtos/
+│   └── agents/
+│       ├── agent_context.py
+│       └── agent_response.py
+
+----    
+
+
+

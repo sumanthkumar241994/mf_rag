@@ -1,6 +1,9 @@
 from langgraph.graph import StateGraph, START, END
 from app.workflows.advisor.advisor_state import AdvisorState
 
+from app.dtos.agents.agent_request import AgentRequest
+from app.dtos.workflow.workflow_response import WorkflowResponse
+
 from app.workflows.nodes.context.build_context_node import BuildContextNode
 from app.workflows.nodes.llm.generate_answer_node import GenerateAnswerNode
 from app.workflows.nodes.retrieval.document_search_node import DocumentSearchNode
@@ -35,14 +38,27 @@ class AdvisorWorkflow:
 
         return workflow.compile()
 
-    async def invoke(self, query: str) -> AdvisorState:
-        return await self.graph.ainvoke({"query": query})
+    async def invoke(self, request: AgentRequest) -> WorkflowResponse:
+        state: AdvisorState = {"query": request.query, "history": request.conversation}
+        state = await self.graph.ainvoke(state)
 
-    async def stream(self, query: str):
-        state: AdvisorState = {"query": query}
+        return WorkflowResponse(
+            answer=state['answer'],
+            sources=state["sources"],
+            retrieved_chunks=len(state["chunks"]),
+            llm_usage=state.get("llm_usage"),
+            llm_metrics=state['llm_metrics']
+        )
 
+    async def stream(self, request: AgentRequest):
+        state = await self._prepare_state(request)
+        # stream answer
+        async for event in self.generate_answer_node.stream(state):
+            yield event
+        
+    async def _prepare_state(self, request: AgentRequest) -> AdvisorState:
+        state: AdvisorState = {"query": request.query, "history": request.conversation}
         state.update(await self.document_search_node(state))
         state.update(await self.build_context_node(state))
-        # stream answer
-        async for token in self.generate_answer_node.stream(state):
-            yield token
+
+        return state

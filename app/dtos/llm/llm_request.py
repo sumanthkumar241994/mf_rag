@@ -4,6 +4,5 @@ from dataclasses import dataclass
 class LLMRequest:
     user_prompt: str
     system_prompt: str
-    context: str | None = None
     temperature: float = 0.0
     max_tokens: int = 2000

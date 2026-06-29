@@ -22,11 +22,17 @@ from fastapi import Depends
 from app.advisor.advisor_service import AdvisorService
 from app.agents.advisor_agent import AdvisorAgent
 from app.api.dependencies.agent import get_advisor_agent
+from app.api.dependencies.orchestrator import get_orchestrator
+from app.orchestration.orchestrator import Orchestrator
 
 
 
-async def get_advisor_service(advisor_agent: AdvisorAgent=Depends(get_advisor_agent)) -> AdvisorService:
+async def get_advisor_service(
+    advisor_agent: AdvisorAgent=Depends(get_advisor_agent), 
+    orchestrator: Orchestrator=Depends(get_orchestrator)
+) -> AdvisorService:
 
     return AdvisorService(
-        advisor_agent=advisor_agent
+        advisor_agent=advisor_agent,
+        orchestrator=orchestrator
     )

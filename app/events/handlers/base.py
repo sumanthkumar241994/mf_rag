@@ -13,6 +13,8 @@ class EventHandler(ABC, Generic[EventT]):
     A handler is responsible for processing a single domain event.
     Multiple handlers can subscribe to the same event.
     """
+    critical: bool = False
+    
     @abstractmethod
     async def handle(self, event: EventT):
         """

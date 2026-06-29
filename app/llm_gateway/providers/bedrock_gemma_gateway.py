@@ -1,16 +1,19 @@
 import time
 import json
 import asyncio
+from typing import AsyncIterator
 
 from app.core.config.settings import settings
 from app.core.config.aws import AWS
 
+from app.dtos.agents.stream_event import AgentStreamEvent
 from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_usage import LLMUsage
 from app.dtos.llm.llm_metrics import LLMMetrics
 from app.dtos.llm.llm_stream_response import LLMStreamResponse
 
+from app.enums.stream_event_type import StreamEventType
 from app.llm_gateway.providers.base import LLMProvider
 
 from app.observability.tracing import trace_step
@@ -26,24 +29,8 @@ class GemmaProvider(LLMProvider):
 
     @trace_step("llm_runtime_generate")
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "system": request.system_prompt,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": f"""
-                    Question: 
-                    {request.user_prompt}
+        body = self._build_request_body(request)
 
-                    Context:
-                    {request.context}
-                    """
-                }
-            ]
-        }
         start_time = time.perf_counter()
         
         response = await asyncio.to_thread(self.bedrock_client.invoke_model,modelId=self.MODEL_ID, body=json.dumps(body))
@@ -70,26 +57,60 @@ class GemmaProvider(LLMProvider):
             )
         )
 
-    @trace_step("llm_runtime_stream")
-    async def stream(self, request: LLMRequest, stream_response: LLMStreamResponse):
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "system": request.system_prompt,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": f"""
-                    Question: 
-                    {request.user_prompt}
+    # @trace_step("llm_runtime_stream")
+    # async def stream(self, request: LLMRequest, stream_response: LLMStreamResponse):
+    #     body = self._build_request_body(request)
 
-                    Context:
-                    {request.context}
-                    """
-                }
-            ]
-        }
+    #     response = await asyncio.to_thread(
+    #         self.bedrock_client.invoke_model_with_response_stream,
+    #         modelId=self.MODEL_ID,
+    #         body=json.dumps(body)
+    #     )
+
+    #     stream = response['body']
+
+    #     for event in stream:
+    #         chunk = event.get('chunk')
+    #         if not chunk:
+    #             continue
+
+    #         payload = json.loads(chunk['bytes'].decode('utf-8'))
+
+    #         choices = payload.get('choices', [])
+    #         if not choices:
+    #             continue
+
+    #         delta = choices[0].get("delta",{})
+    #         if not delta:
+    #             continue
+
+    #         content = delta.get("content")
+
+    #         if "<reasoning>" not in content and "</reasoning>" not in content :
+    #             stream_response.answer += content
+    #             yield content
+
+    #         # Final Chunk
+    #         invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
+
+    #         if invocation_metrics:
+    #             stream_response.usage = LLMUsage(
+    #                 input_tokens=invocation_metrics['inputTokenCount'],
+    #                 output_tokens=invocation_metrics['outputTokenCount'],
+    #                 total_tokens =invocation_metrics['inputTokenCount'] + invocation_metrics['outputTokenCount']
+    #             )
+
+    #             stream_response.metrics = LLMMetrics(
+    #                 model = self.MODEL_ID,
+    #                 latency_ms=invocation_metrics['invocationLatency'],
+    #                 first_token_latency_ms=invocation_metrics['firstByteLatency'],
+    #                 invocation_latency_ms=invocation_metrics['invocationLatency'],
+    #                 finish_reason=choices[0].get('finish_reason')
+    #             )
+
+    @trace_step("llm_runtime_stream")
+    async def stream(self, request: LLMRequest) -> AsyncIterator[AgentStreamEvent]:
+        body = self._build_request_body(request)
 
         response = await asyncio.to_thread(
             self.bedrock_client.invoke_model_with_response_stream,
@@ -98,6 +119,8 @@ class GemmaProvider(LLMProvider):
         )
 
         stream = response['body']
+
+        stream_response = LLMStreamResponse()
 
         for event in stream:
             chunk = event.get('chunk')
@@ -118,7 +141,10 @@ class GemmaProvider(LLMProvider):
 
             if "<reasoning>" not in content and "</reasoning>" not in content :
                 stream_response.answer += content
-                yield content
+                yield AgentStreamEvent(
+                    type=StreamEventType.TOKEN.value,
+                    token=content
+                )
 
             # Final Chunk
             invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
@@ -138,4 +164,21 @@ class GemmaProvider(LLMProvider):
                     finish_reason=choices[0].get('finish_reason')
                 )
 
+                yield AgentStreamEvent(
+                    type=StreamEventType.COMPLETED.value,
+                    response=stream_response
+                )
 
+    def _build_request_body(self, request: LLMRequest) -> dict:
+        return {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": request.max_tokens,
+            "temperature": request.temperature,
+            "system": request.system_prompt,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": request.user_prompt,
+                }
+            ],
+        }

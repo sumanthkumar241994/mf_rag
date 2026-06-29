@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     MEDIUM_PRIORITY_QUEUE_URL: str
     LOW_PRIORITY_QUEUE_URL: str
 
+    REDIS_URL: str
+
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 
@@ -44,7 +46,7 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://"
             f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
-            f"/{self.POSTGRES_DB}?ssl=require"
+            f"/{self.POSTGRES_DB}"
         )
 
 settings = Settings()
