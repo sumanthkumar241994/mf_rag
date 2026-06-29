@@ -5,7 +5,7 @@ from app.schemas.requests.chat import ChatRequest
 
 from app.api.dependencies.advisor import get_advisor_service
 from app.api.dependencies.request import build_chat_request
-from app.advisor.advisor_service import AdvisorService
+from app.services.advisor_service import AdvisorService
 
 from app.dtos.agents.agent_response import AgentResponse
 

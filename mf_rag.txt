@@ -3766,5 +3766,98 @@ app/
 
 ----    
 
+FastAPI
+    │
+AdvisorService
+    │
+Orchestrator
+    │
+ConversationService
+    │
+ConversationUnitOfWork
+    ├──────────────┐
+    │              │
+ConversationRepo  MessageRepo
+    │              │
+    └──────┬───────┘
+           │
+     AsyncSession
+
+
+Here's what I would consider your platform maturity now:
+
+✅ Agent Runtime
+✅ Orchestrator
+✅ LangGraph Integration
+✅ LLM Gateway
+✅ Streaming
+✅ Prompt Builder
+✅ Conversation Memory
+✅ Redis Cache
+✅ Event Platform
+✅ SQS Worker
+✅ Unit of Work
+✅ Critical/Non-Critical Event Handling
+✅ Langfuse Integration
+
+This is already much more than a typical RAG project.
+
+---------------
+
+Platform ✅
+
+↓
+
+Tool Platform ⭐
+
+↓
+
+Portfolio Workflow ⭐⭐⭐⭐⭐
+
+↓
+
+Planning Workflow ⭐⭐⭐⭐
+
+↓
+
+Comparison Workflow ⭐⭐⭐⭐
+
+↓
+
+Risk Workflow ⭐⭐⭐⭐
+
+↓
+
+Planner ⭐⭐⭐⭐⭐
+
+↓
+
+Memory Platform ⭐⭐⭐⭐⭐
+
+↓
+
+Evaluation
+
+↓
+
+Persona Clustering
+
+↓
+
+Multi-Agent Optimization
+
+-----------------
+The very next feature should be the Tool Platform, followed immediately by the Portfolio Workflow.
+
+The reason is that your current architecture is now mature enough to support multiple business workflows. The PortfolioTool becomes the foundation for several PRD features:
+
+Portfolio Analysis & Benchmarking
+Rebalancing Engine
+Existing Investor insights
+Goal-Based Planning (through current holdings)
+Future Planner decisions
+
+Once that tool exists, adding new workflows becomes much faster because they all consume the same business data through a consistent interface rather than each workflow talking directly to backend APIs. This also makes your platform architecture much stronger from an interview perspective because you've clearly separated AI orchestration, business tools, and domain workflows.
+
 
 
