@@ -3,6 +3,9 @@ from collections import defaultdict
 
 from app.events.handlers.base import EventHandler
 from app.events.models.base_event import BaseEvent
+import logging
+
+logger = logging.getLogger(__name__)
 
 class EventDispatcher:
     """
@@ -24,5 +27,17 @@ class EventDispatcher:
         handlers = self._handlers.get(event.event_type, [])
         if not handlers:
             return
+            
+        results = await asyncio.gather(*(handler.handle(event) for handler in handlers), return_exceptions=True)
 
-        await asyncio.gather(*(handler.handle(event) for handler in handlers), return_exceptions=True)
+        critical_errors = []
+
+        for handler, result in zip(handlers, results):
+            if isinstance(result, Exception):
+                logger.exception(f"Handler: {handler.__class__.__name__} failed. event_id: {event.event_id}", exc_info=result)
+            
+            if handler.critical:
+                critical_errors.append(result)
+        
+        if critical_errors:
+            raise critical_errors[0]

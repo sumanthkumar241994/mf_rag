@@ -5,25 +5,26 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.cache.conversation_cache import ConversationCache
 from app.enums.conversation import ConversationStatus, MessageRole
 from app.models.conversation import Conversation
 from app.models.message import Message
-from app.repositories.conversation_repository import ConversationRepository
-from app.repositories.message_repository import MessageRepository
 from app.schemas.conversation.cache_message import CacheMessage
+from app.unit_of_work.conversation_uow import ConversationUnitOfWork
 
 logger = logging.getLogger(__name__)
 
 class ConversationService:
     def __init__(
         self, 
-        conversation_repository: ConversationRepository,
-        message_repository: MessageRepository,
+        db: AsyncSession,
+        uow: ConversationUnitOfWork,
         cache: ConversationCache
-    ):
-        self.conversation_repository = conversation_repository
-        self.message_repository = message_repository
+    ):  
+        self.db=db
+        self.uow = uow
         self.cache = cache
     
     def _create_conversation(
@@ -106,7 +107,7 @@ class ConversationService:
             metadata=metadata
         )
 
-        conversation = await self.conversation_repository.create(conversation)
+        conversation = await self.uow.conversations.create(conversation)
         logger.info(f"Created conversation for {conversation.id} and workflow: {conversation.workflow}")
 
         return conversation
@@ -119,13 +120,12 @@ class ConversationService:
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
-        conversation = await self.conversation_repository.get_by_session_id(session_id)
+        conversation = await self.uow.conversations.get_by_session_id(session_id)
 
         if conversation:
             return conversation
         
         logger.info(f"Creating new conversation for session: {session_id}")
-
         return await self.create_conversation(
             customer_id=customer_id,
             session_id=session_id,
@@ -151,7 +151,7 @@ class ConversationService:
         """
         metadata = metadata or {}
 
-        last_sqeuence_id = await self.message_repository.get_last_sequence(conversation.id)
+        last_sqeuence_id = await self.uow.messages.get_last_sequence(conversation.id)
 
         message = self._create_message(
             conversation_id=conversation.id,
@@ -161,7 +161,7 @@ class ConversationService:
             metadata=metadata
         )
 
-        message = await self.message_repository.create(message)
+        message = await self.uow.messages.create(message)
 
         await self._update_cache(
             conversation.id,
@@ -196,7 +196,7 @@ class ConversationService:
 
         logger.debug(f"Conversation cache miss for {conversation_id}")
 
-        messages = await self.message_repository.get_recent(
+        messages = await self.uow.messages.get_recent(
             conversation_id,
             limit
         )
@@ -221,6 +221,6 @@ class ConversationService:
         """
         Marks the conversation as completed and clears runtime cache.
         """
-        await self.conversation_repository.complete(conversation_id)
+        await self.uow.conversations.complete(conversation_id)
         await self.cache.delete(conversation_id)
         logger.info(f"completed conversation: {conversation_id}")
