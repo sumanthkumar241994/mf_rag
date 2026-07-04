@@ -7356,3 +7356,642 @@ AgentResponse
 Orchestrator
     ├── Save Assistant Message
     └── Return
+
+
+---------------------------
+
+Excellent! 🎉
+
+You've now completed what I'd consider the **v1 enterprise streaming architecture**.
+
+Your end-to-end flow is now:
+
+```text
+HTTP Request
+      │
+      ▼
+AdvisorService
+      │
+      ▼
+Orchestrator
+      │
+      ▼
+AdvisorAgent
+      │
+      ▼
+AdvisorWorkflow.stream()
+      │
+      ├───────────────┐
+      ▼               ▼
+ Planner         ToolExecution
+      │               │
+      ▼               ▼
+ Decision ─────────────┘
+      │
+      ├── ToolFailureNode ─────► COMPLETED
+      │
+      ▼
+ PromptBuilder
+      ▼
+ LLMNode
+      ▼
+ LLMGateway.stream()
+      ▼
+ Bedrock Streaming
+```
+
+And the frontend receives a rich event stream like:
+
+```text
+session
+planner_start
+planner_end
+tool_start
+tool_end
+prompt_start
+prompt_end
+token
+token
+token
+completed
+```
+
+or, on failure:
+
+```text
+session
+planner_start
+planner_end
+tool_start
+tool_end
+error
+completed
+```
+
+This is a very solid enterprise event model.
+
+---
+
+## What you've achieved
+
+* ✅ Conversation management
+* ✅ Correlation ID
+* ✅ Trace ID
+* ✅ Langfuse integration
+* ✅ Planner
+* ✅ Tool execution
+* ✅ Decision node
+* ✅ Prompt builder
+* ✅ LLM
+* ✅ Streaming
+* ✅ Tool failure path
+* ✅ SSE events
+* ✅ Conversation persistence
+* ✅ Metadata
+* ✅ Streaming architecture reusable across workflows
+
+---
+
+## I would stop here and stabilize
+
+Before adding more capabilities (Risk, Customer, Goal, Investment, etc.), I'd spend a day on **hardening**.
+
+Things I'd review:
+
+* Remove any duplicate logic between `__call__()` and `stream()` where possible.
+* Add unit tests for each node (`invoke` and `stream`).
+* Add integration tests for:
+
+  * Tool success → LLM path.
+  * Required tool failure → ToolFailure path.
+  * LLM streaming completion.
+* Verify conversation persistence for both streaming and non-streaming.
+* Ensure `COMPLETED` is always emitted exactly once.
+
+---
+
+## What's next?
+
+Now that the advisor framework is in place, the next major step I'd recommend is **tool parallelization**.
+
+Right now, tools execute sequentially:
+
+```text
+Portfolio
+    ↓
+Customer
+    ↓
+Document Search
+```
+
+Eventually, independent tools can run concurrently:
+
+```text
+            Planner
+               │
+     ┌─────────┼─────────┐
+     ▼         ▼         ▼
+ Portfolio  Customer  Documents
+     │         │         │
+     └─────────┼─────────┘
+               ▼
+        Prompt Builder
+               ▼
+              LLM
+```
+
+Because you've designed everything around a shared `AdvisorState` and event streaming, adding parallel execution later will be much easier.
+
+At this point, I'd say you've built a strong foundation for an enterprise-grade advisor workflow.
+
+
+-----------------------
+
+
+
+Looking at the architecture we've built over the last few weeks, I'd say you've completed **about 75–80% of the Advisor platform**. The foundation is very strong now. The remaining work is mostly around robustness, additional capabilities, and production readiness.
+
+Here's how I see it.
+
+---
+
+# ✅ Phase 1 — Core Architecture (Completed)
+
+### Infrastructure
+
+* ✅ FastAPI
+* ✅ Dependency Injection
+* ✅ Configuration
+* ✅ Logging
+* ✅ Correlation ID
+* ✅ Trace ID
+* ✅ Global Exception Handling
+
+---
+
+### Conversation
+
+* ✅ Conversation Service
+* ✅ Conversation Repository
+* ✅ Messages
+* ✅ Redis Cache
+* ✅ Context Retrieval
+
+---
+
+### Advisor
+
+* ✅ Advisor Service
+* ✅ Orchestrator
+* ✅ Advisor Agent
+
+---
+
+### Workflow
+
+* ✅ Advisor Workflow
+* ✅ Planner
+* ✅ Tool Execution
+* ✅ Decision Node
+* ✅ Prompt Builder
+* ✅ Tool Failure Node
+* ✅ LLM Node
+
+---
+
+### Streaming
+
+This is now enterprise-grade.
+
+* ✅ SSE
+* ✅ Session Event
+* ✅ Planner Events
+* ✅ Tool Events
+* ✅ Prompt Events
+* ✅ Token Events
+* ✅ Completed Event
+* ✅ Error Event
+
+---
+
+### LLM
+
+* ✅ Gateway
+* ✅ Bedrock Provider
+* ✅ Streaming
+* ✅ Usage
+* ✅ Metrics
+* ✅ Cost Calculation
+
+---
+
+### Observability
+
+* ✅ Langfuse
+* ✅ Generation tracing
+* ✅ SQS Event Publishing
+* ✅ Async Langfuse Handler
+
+---
+
+# Phase 2 — Planner (Mostly Complete)
+
+You have:
+
+```
+Intent
+↓
+
+Capabilities
+↓
+
+Tool Mapping
+```
+
+Still missing:
+
+* Dynamic planner (LLM planner)
+* Confidence threshold tuning
+* Planner evaluation
+
+---
+
+# Phase 3 — Tools
+
+Current
+
+```
+Portfolio
+```
+
+Need
+
+```
+Customer
+Investment
+Risk
+Goal
+Market
+Document Search
+Tax
+```
+
+---
+
+Need Tool Registry enhancements
+
+```
+Capability
+↓
+
+Tool
+
+↓
+
+Required/Optional
+
+↓
+
+Timeout
+
+↓
+
+Retry
+
+↓
+
+Fallback
+```
+
+---
+
+# Phase 4 — Retrieval
+
+You already built ingestion.
+
+Need runtime.
+
+```
+Document Search Tool
+
+↓
+
+Retriever
+
+↓
+
+Context Builder
+
+↓
+
+Citations
+```
+
+---
+
+Need
+
+```
+Chunk Ranking
+
+Hybrid Search
+
+Metadata Filtering
+
+Reranker
+```
+
+---
+
+# Phase 5 — Prompting
+
+Need
+
+```
+Prompt Registry
+
+↓
+
+Versioning
+
+↓
+
+Templates
+
+↓
+
+A/B Testing
+```
+
+---
+
+# Phase 6 — Memory
+
+Currently
+
+```
+Conversation History
+```
+
+Need
+
+```
+Long-term Memory
+
+User Preferences
+
+Investment Profile
+
+Previously Discussed Schemes
+
+Goals
+
+Risk Appetite
+```
+
+---
+
+# Phase 7 — Workflow
+
+Current
+
+```
+Planner
+
+↓
+
+Tools
+
+↓
+
+Decision
+
+↓
+
+Prompt
+
+↓
+
+LLM
+```
+
+Need
+
+```
+Retry Node
+
+↓
+
+Fallback Node
+
+↓
+
+Human Approval Node
+
+↓
+
+Clarification Node
+
+↓
+
+Multi-Agent Routing
+```
+
+---
+
+# Phase 8 — Streaming
+
+Current
+
+```
+Planner
+
+Tool
+
+Prompt
+
+LLM
+```
+
+Need
+
+```
+Heartbeat
+
+Reconnect
+
+Resume
+
+Cancellation
+
+Progress %
+```
+
+---
+
+# Phase 9 — Observability
+
+Need
+
+```
+Planner Trace
+
+↓
+
+Tool Trace
+
+↓
+
+Gateway Trace
+
+↓
+
+Workflow Trace
+```
+
+Need
+
+```
+Latency Dashboard
+
+Cost Dashboard
+
+Failure Dashboard
+
+Token Dashboard
+```
+
+---
+
+# Phase 10 — Evaluation
+
+Missing completely.
+
+Need
+
+```
+Golden Dataset
+
+↓
+
+Retrieval Evaluation
+
+↓
+
+Answer Evaluation
+
+↓
+
+Planner Evaluation
+
+↓
+
+Hallucination Detection
+```
+
+---
+
+# Phase 11 — Enterprise
+
+Need
+
+```
+Rate Limiting
+
+Authentication
+
+Authorization
+
+API Versioning
+
+Feature Flags
+
+Circuit Breaker
+
+Bulkheads
+```
+
+---
+
+# Phase 12 — Testing
+
+Need
+
+```
+Unit Tests
+
+Integration Tests
+
+Workflow Tests
+
+Streaming Tests
+
+Load Tests
+```
+
+---
+
+# Phase 13 — Production
+
+Need
+
+```
+Docker
+
+CI/CD
+
+Health Checks
+
+Metrics
+
+Prometheus
+
+Grafana
+
+Autoscaling
+```
+
+---
+
+# Advisor Capability Coverage
+
+Current
+
+```
+Portfolio        ✅
+Customer         ❌
+Investment       ❌
+Goal             ❌
+Risk             ❌
+Tax              ❌
+Market           ❌
+Document Search  ❌
+Comparison       ❌
+```
+
+---
+
+# What I would do next (Priority)
+
+Given your project goals, I would prioritize the remaining work like this:
+
+1. **Complete the remaining tools** (Customer, Document Search, Investment, Goal, Risk). This gives the advisor real breadth of functionality.
+
+2. **Build Retrieval Runtime** so `DocumentSearchTool` provides grounded context with citations.
+
+3. **Strengthen the Planner** by introducing required/optional tool metadata, retries, and fallback behavior. You already started thinking about this, and it's the right next refinement.
+
+4. **Add automated evaluation** (planner accuracy, retrieval quality, answer quality). This is what separates a working prototype from a production AI system.
+
+5. **Expand observability** with dashboards for latency, cost, failures, and token usage.
+
+---
+
+## Overall assessment
+
+From an architecture perspective, I'd say you're at roughly **80%** of a production-ready advisor platform. The core orchestration, streaming, tracing, conversation management, and LLM integration are all in place.
+
+The remaining work is less about redesigning the architecture and more about **adding capabilities, resilience, and quality controls**. That means the hardest architectural problems are largely behind you, and the rest of the development should build on the solid foundation you've established.
+
+
+--------------------------
