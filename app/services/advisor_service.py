@@ -58,6 +58,7 @@
 from typing import AsyncIterator
 
 from app.dtos.agents.agent_response import AgentResponse
+from app.dtos.agents.stream_event import AgentStreamEvent
 from app.dtos.request_context import RequestContext
 from app.orchestration.orchestrator import Orchestrator
 
@@ -81,7 +82,7 @@ class AdvisorService:
     async def stream(
         self,
         request: RequestContext
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[AgentStreamEvent]:
         print(f"stream request: {request}")
         async for token in self.orchestrator.stream(request=request):
             yield token

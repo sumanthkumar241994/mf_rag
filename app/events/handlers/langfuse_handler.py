@@ -42,6 +42,9 @@ class LangfuseHandler(EventHandler[LLMGenerationCompletedEvent]):
                     "input": event.usage.input_tokens,
                     "output": event.usage.output_tokens
                 },
+                cost_details={
+                    "total": event.metrics.cost,
+                },
                 metadata={
                     "event_id": event.event_id,
                     "correlation_id": event.correlation_id,
@@ -49,7 +52,6 @@ class LangfuseHandler(EventHandler[LLMGenerationCompletedEvent]):
                     "first_token_latency_ms": event.metrics.first_token_latency_ms,
                     "invocation_latency_ms": event.metrics.invocation_latency_ms,
                     "gateway_overhead_ms": event.metrics.gateway_overhead_ms,
-                    "cost": event.metrics.cost,
                     "finish_reason": event.metrics.finish_reason
                 }
 

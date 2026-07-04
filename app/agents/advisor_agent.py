@@ -120,6 +120,7 @@ from dataclasses import asdict
 from typing import AsyncIterator
 
 from app.agents.base_agent import BaseAgent
+from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.workflow import WorkflowType
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
@@ -153,6 +154,6 @@ class AdvisorAgent(BaseAgent):
             metadata=metadata
         )
     
-    async def stream(self, state: AdvisorState) -> AsyncIterator[str]:
-        async for event in self.advisor_workflow.stream(state):
+    async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+        async for event in self._advisor_workflow.stream(state):
             yield event

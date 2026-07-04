@@ -4,6 +4,7 @@ from typing import AsyncIterator
 
 from app.agents.advisor_agent import AdvisorAgent
 from app.core.middleware.request_context_vars import trace_id_ctx
+from app.dtos.agents.stream_event import AgentStreamEvent
 from app.dtos.request_context import RequestContext
 from app.enums.stream_event_type import StreamEventType
 from app.dtos.agents.agent_response import AgentResponse
@@ -60,7 +61,7 @@ class Orchestrator:
             
         return response
     
-    async def stream(self, request: RequestContext) -> AsyncIterator[str]:
+    async def stream(self, request: RequestContext) -> AsyncIterator[AgentStreamEvent]:
         
         async with self.conversation_service.uow:
             conversation = await self.conversation_service.get_or_create_conversation(
@@ -76,26 +77,41 @@ class Orchestrator:
 
             history = await self.conversation_service.get_recent_context(conversation.id)
 
+            trace_id = LangfuseHelper.get_trace_id()
+
             state = AdvisorState(
                 request=request,
                 history=history,
-                trace_id=LangfuseHelper.get_trace_id()
+                trace_id=trace_id
             )
+
+            yield AgentStreamEvent(
+                    type=StreamEventType.SESSION.value,
+                    metadata={
+                        "conversation_id": str(conversation.id),
+                        "trace_id": str(trace_id)
+                    }
+                )
             stream_response = None 
 
             async for event in self.agent.stream(state):
-                if event.type == StreamEventType.TOKEN.value:
-                    yield event.token
-                elif event.type == StreamEventType.COMPLETED.value:
+                yield event
+
+                if event.type == StreamEventType.COMPLETED.value:
                     stream_response = event.response
 
-            await self.conversation_service.save_message(
-                conversation=conversation,
-                role=MessageRole.ASSISTANT.value,
-                content=stream_response.answer,
-                metadata={
-                    "llm_usage": asdict(stream_response.usage),
-                    "llm_metrics": asdict(stream_response.metrics)
-                }
+            if stream_response:
+                metadata = {}
 
-            )
+                if stream_response.usage:
+                    metadata['llm_usage'] = asdict(stream_response.usage)
+                if stream_response.metrics:
+                    metadata['llm_metrics'] = asdict(stream_response.metrics)
+
+                await self.conversation_service.save_message(
+                    conversation=conversation,
+                    role=MessageRole.ASSISTANT.value,
+                    content=stream_response.answer,
+                    metadata=metadata
+
+                )
