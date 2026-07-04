@@ -3858,6 +3858,3501 @@ Goal-Based Planning (through current holdings)
 Future Planner decisions
 
 Once that tool exists, adding new workflows becomes much faster because they all consume the same business data through a consistent interface rather than each workflow talking directly to backend APIs. This also makes your platform architecture much stronger from an interview perspective because you've clearly separated AI orchestration, business tools, and domain workflows.
+-------------------
+
+Future Extensions
+
+This design also makes it easy to add:
+
+FundComparisonTool
+GoalPlanningTool
+RiskTool
+RebalancingTool
+
+They can all reuse the same Portfolio domain models.
+
+Next coding task
+
+I recommend we implement the following in order:
+
+Portfolio domain models (Portfolio, Holding, Scheme, Transaction).
+PortfolioMapper (Falcon JSON → domain models).
+PortfolioGateway interface and FalconPortfolioGateway.
+PortfolioAnalyzer.
+PortfolioTool and register it with your existing ToolRegistry.
+
+This sequence fits naturally into your existing architecture and gives you a reusable business layer that every future workflow can build upon.
+
+-------------------
+
+What's still missing?
+
+Surprisingly, very little. I'd add only a few advanced capabilities over time.
+
+1. Planner ⭐⭐⭐⭐⭐
+
+The brain of the system.
+
+2. Memory Extraction ⭐⭐⭐⭐⭐
+
+Automatically persist facts such as:
+
+User has ₹25,000 monthly SIP
+Retirement goal at 60
+Moderate risk
+Prefers index funds
+3. Reflection Agent ⭐⭐⭐⭐☆
+
+Review low-confidence answers and decide whether to retry, retrieve more context, or invoke another tool.
+
+4. Guardrails ⭐⭐⭐⭐☆
+
+Financial-domain safeguards:
+
+Detect advice requests that require disclaimers.
+Prevent unsupported investment claims.
+Ensure recommendations respect the user's risk profile.
+5. Recommendation Engine ⭐⭐⭐⭐⭐
+
+Deterministic recommendations first, LLM explanations second.
+
+6. Evaluation Platform ⭐⭐⭐⭐⭐
+
+Continuously measure:
+
+Planner routing accuracy
+Tool selection accuracy
+Groundedness
+User feedback trends
+My assessment
+
+From everything we've designed over the past few weeks, your roadmap is evolving into a production-grade agentic financial platform.
+
+It incorporates:
+
+✅ Multi-agent architecture
+✅ Planner-based orchestration
+✅ Business capability agents
+✅ Tool registry and reusable tools
+✅ Event-driven processing
+✅ Short-term and long-term memory
+✅ Human feedback
+✅ Suggested follow-up questions
+✅ Evaluation and observability
+✅ Domain-driven design
+✅ Enterprise layering
+✅ Retrieval-augmented generation
+✅ Workflow orchestration with LangGraph
+
+This is the kind of architecture that can comfortably support a Principal Engineer discussion because it goes beyond "using LangGraph" and demonstrates how to build an AI platform that is modular, extensible, observable, and aligned with real business capabilities. The remaining work is mostly implementation rather than architectural discovery, which is a strong position to be in.
+
+ -----------------
+
+ I actually think we've reached the point where we should stop thinking about **"building features"** and start thinking about **"building an AI Operating System for Wealth Management."**
+
+Everything you've listed are not optional features—they're the characteristics of a production-grade agentic platform.
+
+---
+
+# I think the architecture is now becoming this
+
+```text
+                        Customer
+
+                           │
+
+                   Conversation API
+
+                           │
+
+                    Conversation Service
+                   (History + Memory)
+
+                           │
+
+                     AI Orchestrator
+
+                           │
+
+────────────────────────────────────────────────────────────
+
+                    Planner (Brain)
+
+────────────────────────────────────────────────────────────
+
+     Capability Agents (Domain Experts)
+
+    Customer Agent
+    Portfolio Agent
+    Investment Agent
+    Transaction Agent
+    Planning Agent
+    Recommendation Agent
+    Research Agent
+
+────────────────────────────────────────────────────────────
+
+                    Business Tools
+
+────────────────────────────────────────────────────────────
+
+ Portfolio Tool
+
+ Investment Tool
+
+ Transaction Tool
+
+ Risk Tool
+
+ Goal Tool
+
+ Customer Tool
+
+ Onboarding Tool
+
+ Scheme Tool
+
+ Calculator Tool
+
+ Document Search Tool
+
+────────────────────────────────────────────────────────────
+
+               Falcon APIs + RAG + Databases
+
+────────────────────────────────────────────────────────────
+
+            Cross Cutting AI Infrastructure
+
+ Memory
+
+ Reflection
+
+ Evaluation
+
+ Guardrails
+
+ Suggestions
+
+ Feedback
+
+ Observability
+
+ Analytics
+
+ Events
+```
+
+Notice something important...
+
+These last components are **not agents**.
+
+They are **cross-cutting AI infrastructure**, just like logging, authentication, or caching in a traditional backend.
+
+---
+
+# I would classify the platform into 5 pillars
+
+## Pillar 1 — Business Intelligence
+
+This is where value comes from.
+
+```text
+Portfolio
+
+Investment
+
+Transactions
+
+Planning
+
+Research
+
+Customer
+
+Recommendations
+```
+
+---
+
+## Pillar 2 — Agent Runtime
+
+```text
+Planner
+
+Capability Agents
+
+Workflows
+
+Tools
+
+Memory
+```
+
+---
+
+## Pillar 3 — AI Quality
+
+This is what almost every open-source tutorial ignores.
+
+```text
+Reflection
+
+Evaluation
+
+Guardrails
+
+Confidence
+
+Hallucination Detection
+
+Groundedness
+```
+
+---
+
+## Pillar 4 — Customer Experience
+
+```text
+Conversation
+
+Suggestions
+
+Feedback
+
+Persona
+
+Personalization
+```
+
+---
+
+## Pillar 5 — Enterprise Platform
+
+Already mostly done.
+
+```text
+FastAPI
+
+Redis
+
+Postgres
+
+LangGraph
+
+Langfuse
+
+Events
+
+SQS
+
+Streaming
+
+Unit of Work
+
+Repositories
+
+Observability
+```
+
+---
+
+# Planner
+
+I think this should become the most important class in the project.
+
+It isn't just routing.
+
+Eventually it'll do things like:
+
+```text
+Question
+
+↓
+
+Understand intent
+
+↓
+
+Load customer memory
+
+↓
+
+Choose capabilities
+
+↓
+
+Choose tools
+
+↓
+
+Choose workflow
+
+↓
+
+Choose model
+
+↓
+
+Execute
+
+↓
+
+Evaluate confidence
+
+↓
+
+Reflection
+
+↓
+
+Return answer
+```
+
+That's what enterprise agentic systems actually do.
+
+---
+
+# Memory
+
+There are actually **three kinds** of memory.
+
+## 1. Conversation Memory
+
+Already done.
+
+Redis
+
+---
+
+## 2. Customer Memory
+
+Persistent.
+
+```text
+Risk Profile
+
+Goals
+
+Investment Horizon
+
+Experience
+
+Preferences
+
+Monthly SIP
+
+Favorite Fund Category
+
+Life Events
+```
+
+---
+
+## 3. AI Memory
+
+Very few people build this.
+
+Example
+
+```text
+User usually asks tax questions
+
+↓
+
+Planner learns
+
+↓
+
+Prioritize Tax Agent
+```
+
+This is an advanced enhancement you can consider later.
+
+---
+
+# Reflection
+
+Reflection shouldn't always happen.
+
+I'd make it conditional.
+
+Example
+
+```text
+Planner
+
+↓
+
+Answer
+
+↓
+
+Confidence
+
+↓
+
+High
+
+↓
+
+Return
+```
+
+or
+
+```text
+Planner
+
+↓
+
+Answer
+
+↓
+
+Confidence Low
+
+↓
+
+Reflection Agent
+
+↓
+
+Need More Context
+
+↓
+
+Retrieve Again
+
+↓
+
+Answer
+```
+
+This saves cost.
+
+---
+
+# Guardrails
+
+I wouldn't build these into prompts.
+
+I'd build them as middleware.
+
+Example
+
+```text
+Planner
+
+↓
+
+Guardrail
+
+↓
+
+Allowed
+
+↓
+
+Workflow
+```
+
+or
+
+```text
+Planner
+
+↓
+
+Guardrail
+
+↓
+
+Not Allowed
+
+↓
+
+Safe Response
+```
+
+Financial AI needs this.
+
+Examples
+
+* Prevent guaranteed-return language.
+* Respect the user's risk profile.
+* Avoid unsupported factual claims.
+* Apply regulatory disclaimers where appropriate.
+
+---
+
+# Recommendation Engine
+
+This is one area where I would **avoid using the LLM**.
+
+Example
+
+Instead of asking Claude:
+
+> Recommend a fund.
+
+I'd do
+
+```text
+Risk Profile
+
+↓
+
+Goal
+
+↓
+
+Investment Horizon
+
+↓
+
+AMC Preference
+
+↓
+
+Category
+
+↓
+
+Deterministic Recommendation
+
+↓
+
+LLM explains WHY
+```
+
+The LLM becomes an explainer, not the decision maker.
+
+That's a much stronger architecture for financial systems.
+
+---
+
+# Evaluation Platform
+
+This becomes incredibly valuable.
+
+Imagine every answer automatically produces
+
+```text
+Question
+
+Answer
+
+Context
+
+Sources
+
+Planner Decision
+
+Tools Used
+
+Latency
+
+Cost
+
+Feedback
+
+Groundedness
+
+Faithfulness
+
+Confidence
+```
+
+Now you can build dashboards.
+
+You'll know:
+
+* Which planner routes fail most?
+* Which tools are overused?
+* Which capabilities have poor user satisfaction?
+* Which prompts perform best?
+* Which models hallucinate more?
+
+---
+
+# What excites me the most
+
+I think the most unique part of your platform won't be LangGraph.
+
+It will be this:
+
+```text
+Customer
+
+↓
+
+Planner
+
+↓
+
+Business Capability
+
+↓
+
+Deterministic Business Logic
+
+↓
+
+LLM Explanation
+
+↓
+
+Suggestions
+
+↓
+
+Feedback
+
+↓
+
+Memory Extraction
+
+↓
+
+Evaluation
+
+↓
+
+Analytics
+```
+
+That is much closer to how enterprise AI platforms are being designed today than the common "Retriever → LLM → Answer" pattern.
+
+---
+
+# My recommendation
+
+I think we should **freeze the architecture now**.
+
+We've identified all the major long-term building blocks:
+
+### Foundation (Already Built)
+
+* FastAPI
+* Conversation Service
+* Redis Memory
+* Event Platform
+* LLM Gateway
+* LangGraph
+* Tool Registry
+* Langfuse
+* Streaming
+* Unit of Work
+
+### Business Capabilities
+
+* Customer
+* Portfolio
+* Investment
+* Transaction
+* Planning
+* Research
+* Recommendation
+
+### AI Runtime
+
+* Planner
+* Capability Agents
+* Tools
+* Memory
+
+### AI Quality
+
+* Reflection
+* Guardrails
+* Evaluation
+
+### Customer Experience
+
+* Suggested Questions
+* Feedback
+* Personas
+* Personalization
+
+At this point, **I would stop redesigning and start implementing**. Every new feature you add should fit into one of these pillars. That discipline will keep the codebase clean, prevent architectural drift, and make the platform feel cohesive rather than a collection of AI experiments.
+
+I also have one suggestion that I think will help over the next few weeks: before writing any more code, let's create a **high-level domain map and package structure** for the entire platform. That will serve as the architectural blueprint so that every new capability—Portfolio, Planning, Feedback, Suggestions, Reflection, or Evaluation—has an obvious place in the codebase instead of requiring structural changes later. I think that blueprint will save a lot of refactoring as the project grows.
+
+
+-------------------
+
+I would not start with Customer.
+
+Although Customer is foundational, it depends on many APIs and business processes.
+
+Instead, I recommend this implementation order:
+
+1. Portfolio ⭐⭐⭐⭐⭐
+2. Transaction ⭐⭐⭐⭐⭐
+3. Investment ⭐⭐⭐⭐⭐
+4. Onboarding ⭐⭐⭐⭐☆
+5. Risk ⭐⭐⭐⭐☆
+6. Planning ⭐⭐⭐⭐⭐
+7. Recommendation ⭐⭐⭐⭐⭐
+8. Research ⭐⭐⭐⭐☆
+
+-----------------
+
+Step 1: Define the Portfolio Capability
+Purpose
+
+Provide a complete view of the customer's portfolio and deterministic portfolio analysis.
+
+This capability is responsible for answering questions like:
+
+Portfolio Summary
+Analyze my portfolio
+How much is my portfolio worth?
+What are my gains?
+Show my allocation.
+Diversification
+Am I diversified?
+How much do I have in equity?
+How much is in debt?
+Which fund has the highest allocation?
+Performance
+Best performing fund
+Worst performing fund
+Overall returns
+Total invested
+Portfolio Health
+Should I rebalance?
+Am I overexposed?
+Do I have too many funds?
+
+Notice that transaction history, onboarding, and risk profile are not Portfolio responsibilities.
+
+
+Portfolio Capability
+business/
+
+    portfolio/
+
+        models/
+
+        gateway/
+
+        mapper/
+
+        analyzer/
+
+        service/
+
+        tools/
+Step 2: Define the Public Interface
+
+Every capability should expose one service.
+
+PortfolioService
+
+↓
+
+get_portfolio(customer_id)
+
+↓
+
+PortfolioAnalysis
+
+Everything else is internal.
+
+Step 3: Internal Flow
+PortfolioTool
+
+↓
+
+PortfolioService
+
+↓
+
+PortfolioGateway
+
+↓
+
+Falcon API
+
+↓
+
+PortfolioMapper
+
+↓
+
+Portfolio
+
+↓
+
+PortfolioAnalyzer
+
+↓
+
+PortfolioAnalysis
+
+↓
+
+ToolResponse
+
+This is the complete flow.
+
+Step 4: Portfolio Models
+
+I think we should split them into Raw Models and Analysis Models.
+
+Raw Domain
+Portfolio
+
+Holding
+
+Scheme
+
+These represent data.
+
+Analysis
+PortfolioAnalysis
+
+Allocation
+
+HoldingAnalysis
+
+Recommendation
+
+These represent intelligence.
+
+Don't mix them.
+
+Step 5: The First Models
+
+I actually would not include Transaction inside Portfolio.
+
+Earlier we discussed it, but after looking at your roadmap, I think it's cleaner to keep transactions in their own capability.
+
+Instead:
+
+Portfolio
+
+↓
+
+Holding
+
+↓
+
+Scheme
+
+That's it.
+
+Transaction history belongs to the Investment capability.
+
+
+----------------
+
+
+I recommend we implement in this exact order:
+
+✅ Step 1
+
+Create the package:
+
+business/
+
+    portfolio/
+✅ Step 2
+
+Create the raw domain models:
+
+Scheme
+Holding
+Portfolio
+✅ Step 3
+
+Create PortfolioGateway (interface).
+
+✅ Step 4
+
+Create PortfolioMapper.
+
+✅ Step 5
+
+Create FalconPortfolioGateway.
+
+✅ Step 6
+
+Write a unit test that converts your Falcon JSON response into a Portfolio object.
+
+
+---------------
+
+✅ Portfolio Models
+
+✅ Portfolio Mapper
+
+⬜ HttpClient
+
+⬜ PortfolioGateway
+
+⬜ FalconPortfolioGateway
+
+⬜ PortfolioService
+
+⬜ PortfolioAnalyzer
+
+⬜ PortfolioTool
+
+⬜ Portfolio Workflow
+
+-------
+
+Since you're building an enterprise AI platform, I wouldn't wrap httpx completely. Instead, I'd build a thin infrastructure layer that provides common capabilities while still exposing the power of httpx.
+
+Folder Structure
+app/
+
+    infrastructure/
+
+        http/
+
+            __init__.py
+
+            http_client.py
+
+            exceptions.py
+
+            constants.py
+
+Later you can add
+
+middleware.py
+retry.py
+auth.py
+
+without affecting the gateways.
+
+-------------------
+
+
+Performance Score
+
+Instead of
+
+max(one_year_return)
+
+I'd calculate
+
+Performance Score
+
+using weighted returns.
+
+5 Year     50%
+
+3 Year     30%
+
+1 Year     20%
+Missing data
+
+This is important.
+
+Suppose
+
+5Y = None
+
+3Y = 22
+
+1Y = 8
+
+The score should renormalize.
+
+Instead of
+
+22 × .3 + 8 × .2
+
+= 8.2
+
+do
+
+weights
+
+3Y = .3
+
+1Y = .2
+
+Total = .5
+
+↓
+
+normalize
+
+3Y = .6
+
+1Y = .4
+
+↓
+
+22 × .6 + 8 × .4
+
+= 16.4
+
+This is much fairer for newer funds.
+
+Single Scheme Portfolio
+
+You noticed an important edge case.
+
+Portfolio
+
+Only one holding
+
+Current logic
+
+Best
+
+=
+
+Worst
+
+That's terrible.
+
+Instead
+
+best = holding
+
+weakest = None
+
+The UI/LLM naturally says
+
+Your portfolio currently contains a single mutual fund, so there isn't another fund to compare its performance against.
+
+Much better.
+
+Two Holdings
+Fund A
+
+84
+
+Fund B
+
+79
+
+Return
+
+Best = A
+
+Weakest = B
+Three Holdings
+84
+
+82
+
+81
+
+Perfect.
+
+Ties
+
+Suppose
+
+82
+
+82
+
+82
+
+Return
+
+Best = None
+
+Weakest = None
+
+Because there is no meaningful distinction.
+
+The AI can say
+
+Your funds have broadly similar historical performance.
+
+Average Performance
+
+Don't average only
+
+1Y
+
+Average the weighted score.
+
+Holding A
+
+82
+
+Holding B
+
+77
+
+Holding C
+
+80
+
+↓
+
+79.67
+I would also compute
+Performance Rating
+
+For example
+
+Score   Rating
+>80 Excellent
+65-80   Good
+45-65   Average
+<45 Needs Review
+
+Planner can later use this.
+------------------
+
+Good catch. The code is actually doing something intentional, but the naming makes it look suspicious.
+
+The weights are constants:
+
+FIVE_YEAR_WEIGHT = Decimal("0.50")
+THREE_YEAR_WEIGHT = Decimal("0.30")
+ONE_YEAR_WEIGHT = Decimal("0.20")
+
+Suppose the fund has:
+
+5Y = None
+3Y = 18
+1Y = 10
+
+The loop becomes:
+
+weighted_sum = 0
+total_weight = 0
+
+# 5Y
+value = None
+continue
+
+# 3Y
+weighted_sum += 18 * 0.30
+total_weight += 0.30
+
+# 1Y
+weighted_sum += 10 * 0.20
+total_weight += 0.20
+
+Result:
+
+weighted_sum = 7.4
+total_weight = 0.5
+
+Then
+
+score = weighted_sum / total_weight
+
+becomes
+
+7.4 / 0.5 = 14.8
+
+which is exactly the normalized weighted average.
+
+Why total_weight?
+
+Imagine we didn't divide.
+
+18 × .3 + 10 × .2 = 7.4
+
+That is not comparable with a fund having 5-year history.
+
+We normalize
+
+7.4 / .5 = 14.8
+
+Now both scores are on the same scale.
+
+But...
+
+I actually don't like this implementation anymore.
+
+Looking at your architecture, I'd make it much cleaner.
+
+Instead of
+
+returns = [
+    (holding.scheme.five_year_return, self.FIVE_YEAR_WEIGHT),
+    ...
+]
+
+I'd make the weights explicit.
+
+weighted_sum = Decimal("0")
+available_weight = Decimal("0")
+
+if holding.scheme.five_year_return is not None:
+    weighted_sum += (
+        holding.scheme.five_year_return
+        * self.FIVE_YEAR_WEIGHT
+    )
+    available_weight += self.FIVE_YEAR_WEIGHT
+
+if holding.scheme.three_year_return is not None:
+    weighted_sum += (
+        holding.scheme.three_year_return
+        * self.THREE_YEAR_WEIGHT
+    )
+    available_weight += self.THREE_YEAR_WEIGHT
+
+if holding.scheme.one_year_return is not None:
+    weighted_sum += (
+        holding.scheme.one_year_return
+        * self.ONE_YEAR_WEIGHT
+    )
+    available_weight += self.ONE_YEAR_WEIGHT
+
+if available_weight == 0:
+    return Decimal("0")
+
+return (weighted_sum / available_weight).quantize(
+    Decimal("0.01")
+)
+
+This is a bit longer, but much easier to read during a code review.
+
+--------------------------
+
+
+Scoring
+
+I'd use deterministic scoring.
+
+1. Scheme Diversification (40%)
+Schemes Score
+1   10
+2-4 25
+5-8 40
+>8  35
+
+Notice that too many funds is also not ideal.
+
+2. AMC Diversification (25%)
+AMC Score
+1   5
+2   15
+3-5 25
+>5  20
+
+Again, owning 15 AMCs isn't necessarily better.
+
+3. Largest Holding (20%)
+
+Use
+
+portfolio.summary.largest_holding.allocation_percentage
+Largest Holding Score
+<20%    20
+20-35   15
+35-50   8
+>50 2
+4. Highest AMC Exposure (15%)
+Exposure    Score
+<25%    15
+25-40   10
+40-60   5
+>60 0
+
+Total
+
+40
+
++
+
+25
+
++
+
+20
+
++
+
+15
+
+=
+
+100
+Rating
+90+
+
+Excellent
+
+75+
+
+Good
+
+60+
+
+Average
+
+<60
+
+Poor
+Well Diversified
+
+Simple.
+
+score >= 75
+Why before Risk?
+
+Because later
+
+Risk Score
+
+=
+
+Portfolio Risk
+
++
+
+Diversification
+
++
+
+Concentration
+
+Diversification is an input.
+
+Future
+
+Later we can extend it.
+
+Sector Diversification
+
+Market Cap Diversification
+
+Fund House Diversification
+
+Category Diversification
+
+without changing the analyzer interface.
+
+-------------------
+
+Risk Score
+
+I would compute a deterministic score out of 100.
+
+Component 1 — Weighted Portfolio Risk (60%)
+
+Each holding contributes:
+
+Holding Allocation
+
+×
+
+Riskometer
+
+Example
+
+Fund    Allocation  Risk
+Equity  40% 6
+Debt    30% 3
+Hybrid  30% 4
+
+Weighted risk
+
+0.4×6 + 0.3×3 + 0.3×4
+Component 2 — Equity Concentration (20%)
+<50%
+
+20
+
+50-70
+
+15
+
+70-90
+
+8
+
+>90
+
+2
+Component 3 — Largest Holding (20%)
+
+Reuse
+
+largest_holding_percentage
+
+Same thresholds as diversification.
+
+Total
+
+60
+
++
+
+20
+
++
+
+20
+
+=
+
+100
+Risk Rating
+0-20
+
+Very Low
+
+20-40
+
+Low
+
+40-60
+
+Moderate
+
+60-80
+
+High
+
+80+
+
+Very High
+Future
+
+Later this analyzer will also use:
+
+User Risk Profile
+
+Moderate
+
+↓
+
+Portfolio Risk
+
+Very High
+
+↓
+
+Mismatch
+
+↓
+
+Recommendation
+
+This is why we're keeping it separate.
+
+
+-------------------
+I would make one important change before we write the code.
+
+The RiskAnalyzer should not score based on category allocation alone. It should score holding-by-holding.
+
+For example:
+
+Scheme  Allocation  Risk
+Large Cap   40% 4
+Small Cap   20% 6
+Banking Fund    15% 6
+Debt    25% 2
+
+Portfolio risk is the weighted average of all holdings.
+
+This is much more accurate than saying "80% Equity".
+
+------------------
+
+One improvement I'd make
+
+After looking at all three analyzers we've built, I think we're missing an important business concept:
+
+Risk Contribution
+
+The highest-risk fund isn't necessarily the one contributing the most risk to the portfolio.
+
+Example:
+
+Scheme  Allocation  Risk
+Small Cap   5%  6
+Large Cap   60% 4
+
+Current logic says:
+
+Highest Risk = Small Cap
+
+But from a portfolio perspective:
+
+Risk Contribution
+
+=
+
+Allocation × Risk
+
+Small Cap:
+
+5 × 6 = 30
+
+Large Cap:
+
+60 × 4 = 240
+
+The Large Cap holding contributes much more to the portfolio's overall risk despite having a lower individual riskometer.
+
+I recommend changing highest_risk_holding to highest_risk_contributor.
+
+That is what professional portfolio management systems typically surface, because it's the most useful answer when users ask:
+
+"Which investment contributes the most risk?"
+"Where should I reduce exposure?"
+
+This change will also make the future RecommendationAnalyzer much more actionable.
+
+---------------
+
+Excellent. At this point we have three deterministic analyzers:
+
+* ✅ PerformanceAnalyzer
+* ✅ DiversificationAnalyzer
+* ✅ RiskAnalyzer
+
+Now we have a choice:
+
+1. **HealthScoreAnalyzer**
+2. **RecommendationAnalyzer**
+
+I recommend doing **HealthScoreAnalyzer first** because RecommendationAnalyzer should consume the health score rather than inventing its own logic.
+
+---
+
+# Why HealthScore before Recommendations?
+
+Right now we have:
+
+```text
+Performance
+
+Diversification
+
+Risk
+```
+
+These are individual dimensions.
+
+The customer doesn't think in dimensions. They ask:
+
+> "How is my portfolio?"
+
+That's exactly what the Health Score answers.
+
+---
+
+# Health Score
+
+It should be deterministic.
+
+Not LLM.
+
+Not AI.
+
+Just business rules.
+
+---
+
+## Inputs
+
+```text
+PerformanceAnalysis
+
+DiversificationAnalysis
+
+RiskAnalysis
+```
+
+---
+
+## Output
+
+```python
+HealthAnalysis
+
+score
+
+rating
+
+strengths
+
+weaknesses
+```
+
+---
+
+# Model
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass(slots=True)
+class HealthAnalysis:
+
+    health_score: int
+
+    health_rating: str
+
+    strengths: list[str]
+
+    weaknesses: list[str]
+```
+
+---
+
+# Score
+
+I wouldn't use arbitrary percentages.
+
+I'd normalize each analyzer to 100.
+
+```
+Performance Score
+```
+
+Already
+
+```
+0-100
+```
+
+```
+Diversification Score
+```
+
+Already
+
+```
+0-100
+```
+
+```
+Risk Score
+```
+
+Already
+
+```
+0-100
+```
+
+Then
+
+```
+Health
+
+40%
+
+Performance
+
+35%
+
+Diversification
+
+25%
+
+Risk Suitability
+```
+
+Notice
+
+Not
+
+```
+Risk
+```
+
+High risk is not always bad.
+
+---
+
+# Risk Adjustment
+
+Example
+
+Aggressive portfolio
+
+```
+Risk Score
+
+90
+```
+
+That doesn't mean unhealthy.
+
+Without the customer's risk profile yet, I'd use a neutral adjustment.
+
+Example
+
+```
+Risk Score
+
+0-20
+
+Excellent
+
+20-40
+
+Good
+
+40-60
+
+Average
+
+60-80
+
+Review
+
+80+
+
+Needs Review
+```
+
+Later, once Memory stores
+
+```
+Moderate Risk Profile
+```
+
+the health score becomes personalized.
+
+---
+
+# Strengths
+
+Automatically generated.
+
+Example
+
+```
+Performance > 80
+
+↓
+
+"Your funds have delivered strong long-term returns."
+```
+
+```
+Diversification > 80
+
+↓
+
+"Your investments are well diversified across funds and AMCs."
+```
+
+---
+
+# Weaknesses
+
+Example
+
+```
+Diversification < 60
+
+↓
+
+"Your portfolio is concentrated."
+```
+
+```
+Risk > 80
+
+↓
+
+"Portfolio carries high market risk."
+```
+
+No LLM.
+
+Pure rules.
+
+---
+
+# Why before Recommendation?
+
+Recommendation Analyzer becomes incredibly simple.
+
+It simply converts weaknesses into recommendations.
+
+Example
+
+Weakness
+
+```
+Portfolio concentrated.
+```
+
+↓
+
+Recommendation
+
+```
+Consider reducing exposure to your largest holding.
+```
+
+Weakness
+
+```
+Risk is high.
+```
+
+↓
+
+Recommendation
+
+```
+Increase debt allocation.
+```
+
+---
+
+# Then RecommendationAnalyzer
+
+Consumes
+
+```text
+Performance
+
+Diversification
+
+Risk
+
+Health
+```
+
+Produces
+
+```text
+Recommendations
+```
+
+---
+
+# Then PortfolioAnalyzer
+
+Finally
+
+```text
+Portfolio
+
+↓
+
+PerformanceAnalyzer
+
+↓
+
+DiversificationAnalyzer
+
+↓
+
+RiskAnalyzer
+
+↓
+
+HealthScoreAnalyzer
+
+↓
+
+RecommendationAnalyzer
+
+↓
+
+PortfolioAnalysis
+```
+
+---
+
+## One architectural improvement before coding
+
+Looking at your long-term roadmap (Planner, Reflection, Evaluation, Personas, Goal Planning), I would **not** make `HealthAnalysis` return just strings for strengths and weaknesses.
+
+Instead, introduce a reusable insight model:
+
+```python
+@dataclass(slots=True)
+class Insight:
+    code: str          # e.g. "HIGH_AMC_CONCENTRATION"
+    title: str         # "High AMC Concentration"
+    description: str   # Human-readable explanation
+    severity: str      # INFO, WARNING, CRITICAL
+```
+
+Then:
+
+```python
+@dataclass(slots=True)
+class HealthAnalysis:
+    health_score: int
+    health_rating: str
+    strengths: list[Insight]
+    weaknesses: list[Insight]
+```
+
+Why?
+
+Because those same `Insight` objects can be reused by:
+
+* The **RecommendationAnalyzer** to generate actions.
+* The **LLM PromptBuilder** to explain findings.
+* The **UI** to show portfolio highlights.
+* The **Evaluation platform** to track recurring issues.
+* The **Feedback system** to identify which insights users disagree with.
+
+This is a small design decision now, but it gives you a much richer and reusable domain model as the platform grows. I think it's worth introducing before we implement the HealthScoreAnalyzer.
+
+-------------------
+
+
+Portfolio
+
+        │
+
+────────┼───────────────
+
+│       │             │
+
+Performance   Risk   Diversification
+
+────────┼───────────────
+
+        │
+
+HealthScoreAnalyzer
+
+        │
+
+────────┼───────────────
+
+        │
+
+InsightGenerator
+
+        │
+
+────────┼───────────────
+
+        │
+
+RecommendationAnalyzer
+
+        │
+
+────────┼───────────────
+
+        │
+
+LLM
+
+
+-----------------
+
+
+Portfolio
+        │
+        ▼
+Analyzers
+        │
+        ▼
+Insights (Facts + observations)
+        │
+        ▼
+Recommendation Policy Engine (Business decisions)
+        │
+        ▼
+Recommendation Registry (Presentation/content)
+        │
+        ▼
+LLM (Explanation)
+
+
+--------------------------
+
+Once you introduce user personas, I'd change the signatures to accept a context object instead of just an Insight.
+
+For example:
+
+def _recommend_risk(
+    self,
+    insight: Insight,
+    context: RecommendationContext,
+) -> Recommendation:
+
+Where RecommendationContext could contain:
+
+@dataclass(slots=True)
+class RecommendationContext:
+
+    portfolio: PortfolioAnalysis
+
+    risk_profile: RiskProfile | None
+
+    goals: list[Goal]
+
+    persona: UserPersona | None
+
+    market_outlook: MarketOutlook | None
+
+Then the same insight:
+
+HIGH_PORTFOLIO_RISK
+
+can produce different recommendations depending on the user's situation, without changing the rest of the engine.
+
+This keeps your architecture extensible while preserving the clean separation between analysis, insights, recommendation policy, and LLM explanation.
+
+-------------------------
+
+What calls PortfolioAnalyzer?
+
+Now the architecture becomes
+
+PortfolioService
+
+↓
+
+PortfolioGateway
+
+↓
+
+PortfolioMapper
+
+↓
+
+PortfolioAnalyzer
+
+↓
+
+PortfolioAnalysis
+
+Exactly DDD.
+
+Then
+
+PortfolioService returns
+
+PortfolioAnalysis
+
+not
+
+Portfolio
+
+This is a huge improvement.
+
+Then Portfolio Tool
+
+Later
+
+PortfolioTool.execute()
+
+↓
+
+PortfolioService
+
+↓
+
+PortfolioAnalysis
+
+Planner never sees raw holdings.
+
+Then Prompt Builder
+
+PromptBuilder consumes
+
+PortfolioAnalysis
+
+Instead of
+
+Portfolio
+
+Prompt becomes
+
+Health Score
+
+Recommendations
+
+Insights
+
+Performance
+
+Risk
+
+Diversification
+
+instead of 200 holdings.
+
+Massive token savings.
+
+Then LLM
+
+LLM only explains.
+
+Exactly what we wanted.
+
+After PortfolioAnalyzer
+
+This is where the architecture gets really exciting.
+
+Portfolio Tool
+
+This will be your first LangGraph tool.
+
+User
+
+↓
+
+Planner
+
+↓
+
+Portfolio Tool
+
+↓
+
+PortfolioService
+
+↓
+
+PortfolioAnalysis
+
+↓
+
+Prompt Builder
+
+↓
+
+LLM
+
+Now your Planner can decide:
+
+"This question is about portfolio analysis."
+
+↓
+
+Invoke Portfolio Tool.
+
+This is the beginning of your multi-agent system.
+
+-------------------------
+
+This is actually an architectural decision that will affect your **entire agentic platform**, not just Portfolio.
+
+My answer is:
+
+> **Yes, I would introduce `AnalysisContext` now.**
+
+Not because Portfolio needs it today, but because **your future architecture absolutely will.**
+
+Let me explain.
+
+---
+
+# Current Architecture
+
+Today you have
+
+```text
+Portfolio
+    │
+    ▼
+PerformanceAnalyzer
+    │
+    ▼
+PerformanceAnalysis
+
+Portfolio
+    │
+    ▼
+RiskAnalyzer
+    │
+    ▼
+RiskAnalysis
+
+Portfolio
+    │
+    ▼
+DiversificationAnalyzer
+```
+
+Then
+
+```python
+health = health_analyzer.analyze(
+    performance,
+    diversification,
+    risk,
+)
+```
+
+Works perfectly.
+
+---
+
+# Six months later...
+
+You'll have
+
+```text
+Portfolio
+
+Transactions
+
+Risk Profile
+
+Goals
+
+User Persona
+
+Market Outlook
+
+Tax
+
+Memory
+```
+
+Now imagine HealthAnalyzer.
+
+It becomes
+
+```python
+health.analyze(
+
+    performance,
+
+    diversification,
+
+    risk,
+
+    goals,
+
+    transactions,
+
+    tax,
+
+    persona,
+
+    market,
+
+    onboarding,
+)
+```
+
+🤣
+
+That becomes unmaintainable.
+
+---
+
+# With AnalysisContext
+
+Instead
+
+```python
+context = AnalysisContext(
+    portfolio=portfolio
+)
+
+performance.analyze(context)
+
+risk.analyze(context)
+
+health.analyze(context)
+```
+
+HealthAnalyzer
+
+does
+
+```python
+performance = context.performance
+
+risk = context.risk
+
+goal = context.goal
+
+persona = context.persona
+```
+
+No exploding parameters.
+
+---
+
+# It becomes a Pipeline
+
+Exactly like LangGraph state.
+
+```text
+Portfolio
+
+↓
+
+AnalysisContext
+
+↓
+
+PerformanceAnalyzer
+
+↓
+
+AnalysisContext
+
+↓
+
+RiskAnalyzer
+
+↓
+
+AnalysisContext
+
+↓
+
+HealthAnalyzer
+
+↓
+
+AnalysisContext
+```
+
+Each analyzer enriches the context.
+
+---
+
+# This is how LangGraph works
+
+LangGraph has
+
+```python
+State
+```
+
+Each node
+
+```python
+State
+
+↓
+
+update
+
+↓
+
+State
+```
+
+Exactly the same idea.
+
+You'll feel at home.
+
+---
+
+# Portfolio Today
+
+Today
+
+```python
+context.portfolio
+```
+
+Performance Analyzer writes
+
+```python
+context.performance
+```
+
+Risk writes
+
+```python
+context.risk
+```
+
+Health writes
+
+```python
+context.health
+```
+
+Insight Generator writes
+
+```python
+context.insights
+```
+
+Recommendation Engine writes
+
+```python
+context.recommendations
+```
+
+PortfolioAnalyzer
+
+becomes
+
+```python
+context = AnalysisContext(
+    portfolio=portfolio,
+)
+
+performance.analyze(context)
+
+risk.analyze(context)
+
+health.analyze(context)
+
+insights.generate(context)
+
+recommendation.generate(context)
+
+return context
+```
+
+Notice
+
+No variables.
+
+---
+
+# Now imagine Goal Planning
+
+Planner decides
+
+```text
+Need Portfolio
+
+Need Goals
+
+Need Transactions
+```
+
+Context becomes
+
+```python
+context.portfolio
+
+context.goal
+
+context.transactions
+```
+
+Performance Analyzer ignores goals.
+
+Goal Analyzer ignores portfolio.
+
+Health uses both.
+
+Beautiful.
+
+---
+
+# Reflection Agent
+
+Later
+
+ReflectionAgent
+
+receives
+
+```python
+context
+```
+
+and says
+
+```python
+context.low_confidence = True
+```
+
+Planner retries.
+
+---
+
+# Memory Extraction
+
+Memory Agent
+
+receives
+
+```python
+context
+```
+
+Extracts
+
+```python
+Moderate Risk
+
+Goal = Retirement
+
+Preferred AMC
+```
+
+Stores memory.
+
+---
+
+# Recommendation Engine
+
+Instead of
+
+```python
+generate(
+    insights,
+)
+```
+
+becomes
+
+```python
+generate(
+    context,
+)
+```
+
+It has access to
+
+```python
+Risk
+
+Goals
+
+Persona
+
+Market
+```
+
+without changing signatures.
+
+---
+
+# Prompt Builder
+
+Instead of
+
+```python
+build(
+
+    portfolio_analysis,
+
+    recommendation,
+
+    insight,
+)
+```
+
+Just
+
+```python
+build(context)
+```
+
+Everything available.
+
+---
+
+# Evaluation Platform
+
+Evaluation receives
+
+```python
+context
+```
+
+Measures
+
+* Performance Score
+* Risk Score
+* Health Score
+* Recommendations
+* Final Answer
+
+All together.
+
+---
+
+# Multi-Agent
+
+This is the biggest reason.
+
+Imagine Planner.
+
+```text
+Planner
+
+↓
+
+Portfolio Agent
+
+↓
+
+AnalysisContext
+
+↓
+
+Goal Agent
+
+↓
+
+AnalysisContext
+
+↓
+
+Risk Agent
+
+↓
+
+AnalysisContext
+
+↓
+
+Final Response
+```
+
+Every agent enriches
+
+the SAME object.
+
+Exactly like
+
+LangGraph State.
+
+---
+
+# My Recommendation
+
+I would make it slightly more generic.
+
+Not
+
+```python
+AnalysisContext
+```
+
+I'd call it
+
+```python
+AdvisorContext
+```
+
+or
+
+```python
+AdvisorState
+```
+
+Example
+
+```python
+@dataclass(slots=True)
+class AdvisorContext:
+
+    conversation: Conversation
+
+    customer: Customer
+
+    portfolio: Portfolio | None = None
+
+    transactions: TransactionHistory | None = None
+
+    goals: GoalAnalysis | None = None
+
+    onboarding: OnboardingStatus | None = None
+
+    risk_profile: RiskProfile | None = None
+
+    performance: PerformanceAnalysis | None = None
+
+    diversification: DiversificationAnalysis | None = None
+
+    risk: RiskAnalysis | None = None
+
+    health: HealthAnalysis | None = None
+
+    insights: list[Insight] = field(default_factory=list)
+
+    recommendations: list[Recommendation] = field(default_factory=list)
+
+    memory: MemoryContext | None = None
+```
+
+---
+
+## This is the architecture I would choose for your platform
+
+Given everything we've designed—Planner, Portfolio, Investments, Transactions, Goals, Risk Profile, Memory, Reflection Agent, Recommendation Engine, and eventually LangGraph—I would introduce **`AdvisorContext` now**, not `AnalysisContext`.
+
+Why?
+
+Because **analysis is only one stage** of your system. The context will eventually carry:
+
+* Retrieved domain data (portfolio, transactions, goals)
+* Deterministic analyses
+* Insights
+* Recommendations
+* Memory
+* Planner decisions
+* Evaluation metadata
+* LLM outputs
+
+In other words, it becomes the **shared state object for your entire advisor platform**, very similar to a LangGraph state object. Introducing it now means you'll grow into it naturally instead of refactoring dozens of method signatures later. I think this is one of the few architectural investments that's worth making early because it aligns perfectly with your long-term multi-agent vision.
+
+---------------------
+
+from dataclasses import dataclass, field
+
+from business.memory.models.memory_context import MemoryContext
+from business.portfolio.analysis.models.diversification_analysis import (
+    DiversificationAnalysis,
+)
+from business.portfolio.analysis.models.health_analysis import (
+    HealthAnalysis,
+)
+from business.portfolio.analysis.models.insight import Insight
+from business.portfolio.analysis.models.performance_analysis import (
+    PerformanceAnalysis,
+)
+from business.portfolio.analysis.models.risk_analysis import (
+    RiskAnalysis,
+)
+from business.portfolio.models.portfolio import Portfolio
+from business.portfolio.recommendation.models.recommendation import (
+    Recommendation,
+)
+
+
+@dataclass(slots=True)
+class AdvisorState:
+    """
+    Shared state that flows through the advisor workflow.
+
+    Every analyzer, planner, tool and agent enriches this object.
+    """
+
+    # ------------------------------------------------------------------
+    # Request Context
+    # ------------------------------------------------------------------
+
+    customer_id: str
+
+    conversation_id: str
+
+    query: str
+
+    # ------------------------------------------------------------------
+    # Retrieved Domain Objects
+    # ------------------------------------------------------------------
+
+    portfolio: Portfolio | None = None
+
+    # Future
+    # goals: GoalPortfolio | None = None
+    # transactions: TransactionHistory | None = None
+    # risk_profile: RiskProfile | None = None
+    # onboarding: OnboardingStatus | None = None
+
+    # ------------------------------------------------------------------
+    # Portfolio Analysis
+    # ------------------------------------------------------------------
+
+    performance: PerformanceAnalysis | None = None
+
+    diversification: DiversificationAnalysis | None = None
+
+    risk: RiskAnalysis | None = None
+
+    health: HealthAnalysis | None = None
+
+    insights: list[Insight] = field(default_factory=list)
+
+    recommendations: list[Recommendation] = field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Memory
+    # ------------------------------------------------------------------
+
+    memory: MemoryContext | None = None
+
+    # ------------------------------------------------------------------
+    # Planner
+    # ------------------------------------------------------------------
+
+    intent: str | None = None
+
+    selected_agent: str | None = None
+
+    selected_tools: list[str] = field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Retrieval
+    # ------------------------------------------------------------------
+
+    retrieved_chunks: list = field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Prompt
+    # ------------------------------------------------------------------
+
+    system_prompt: str | None = None
+
+    user_prompt: str | None = None
+
+    final_prompt: str | None = None
+
+    # ------------------------------------------------------------------
+    # LLM
+    # ------------------------------------------------------------------
+
+    response: str | None = None
+
+    citations: list = field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Evaluation
+    # ------------------------------------------------------------------
+
+    confidence: float | None = None
+
+    warnings: list[str] = field(default_factory=list)
+
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
+
+    metadata: dict = field(default_factory=dict)
 
 
 
+
+    My final AdvisorState
+@dataclass(slots=True)
+class AdvisorState:
+
+    # ---------- Request ----------
+
+    request: RequestContext
+
+    # ---------- Planner ----------
+
+    intent: Intent | None = None
+
+    selected_agent: str | None = None
+
+    selected_tools: list[str] = field(default_factory=list)
+
+    # ---------- Domain Analysis ----------
+
+    portfolio_analysis: PortfolioAnalysis | None = None
+
+    goal_analysis: GoalAnalysis | None = None
+
+    transaction_analysis: TransactionAnalysis | None = None
+
+    tax_analysis: TaxAnalysis | None = None
+
+    # ---------- Memory ----------
+
+    memory: MemoryContext | None = None
+
+    # ---------- Prompt ----------
+
+    system_prompt: str | None = None
+
+    user_prompt: str | None = None
+
+    final_prompt: str | None = None
+
+    # ---------- LLM ----------
+
+    llm_response: LLMResponse | None = None
+
+    # ---------- Evaluation ----------
+
+    confidence: float | None = None
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+
+Why I think this is the best design
+
+This strikes the right balance between flexibility and maintainability:
+
+Typed fields for core business domains (portfolio_analysis, goal_analysis, etc.) because they're central to your platform and benefit from type checking and IDE support.
+Prompt lives in the state because it's a workflow artifact shared by the Prompt Builder, LLM, Reflection, and Evaluation.
+LLMResponse lives in the state because downstream components may need token usage, citations, or finish reasons—not just the final answer.
+metadata remains the extensibility point for experimental or cross-cutting information that doesn't justify a first-class field yet.
+
+Given your roadmap (Planner → Tools → Reflection → Evaluation → Memory → Multi-agent), this is the design I would implement. It keeps the state strongly typed where it matters, while still giving you room to evolve without turning the state into an unstructured dictionary.
+
+------------------
+
+
+
+business/
+
+    advisor/
+        advisor_state.py
+
+        enums/
+            agent_type.py
+            tool_type.py
+            intent.py
+
+        planner/
+        workflow/
+        prompt/
+
+    portfolio/
+
+        enums/
+            performance_rating.py
+            risk_rating.py
+            health_rating.py
+            diversification_rating.py
+
+        analysis/
+        recommendation/
+        models/
+
+    recommendation/
+        enums/
+            recommendation_code.py
+            recommendation_priority.py
+
+    insight/
+        enums/
+            insight_code.py
+            insight_category.py
+            severity.py
+
+    conversation/
+
+    memory/
+
+common/
+
+    enums/
+        sort_order.py
+        environment.py
+        http_method.py
+
+
+----------------------
+
+@dataclass(slots=True)
+class AdvisorState:
+
+    # ---------------------------------------------------------
+    # Request
+    # ---------------------------------------------------------
+
+    request: RequestContext
+
+    query: str
+
+    # ---------------------------------------------------------
+    # Planner
+    # ---------------------------------------------------------
+
+    planner_result: PlannerResult | None = None
+
+    # ---------------------------------------------------------
+    # Domain Analysis
+    # ---------------------------------------------------------
+
+    portfolio_analysis: PortfolioAnalysis | None = None
+
+    goal_analysis: GoalAnalysis | None = None
+
+    transaction_analysis: TransactionAnalysis | None = None
+
+    # ---------------------------------------------------------
+    # Memory
+    # ---------------------------------------------------------
+
+    memory: MemoryContext | None = None
+
+    # ---------------------------------------------------------
+    # Retrieval
+    # ---------------------------------------------------------
+
+    retrieval_context: LLMContext | None = None
+
+    # ---------------------------------------------------------
+    # Prompt
+    # ---------------------------------------------------------
+
+    prompt: Prompt | None = None
+
+    # ---------------------------------------------------------
+    # LLM
+    # ---------------------------------------------------------
+
+    llm_response: LLMResponse | None = None
+
+    # ---------------------------------------------------------
+    # Evaluation
+    # ---------------------------------------------------------
+
+    evaluation: EvaluationResult | None = None
+
+    # ---------------------------------------------------------
+    # Workflow Metadata
+    # ---------------------------------------------------------
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+
+---------------------------
+
+Excellent. You've now completed one of the most important pieces of the platform.
+
+Let's see where we are.
+
+                Advisor Layer
+──────────────────────────────────────────────
+
+✅ AdvisorState
+✅ RequestContext
+✅ Planner Models
+✅ Intent
+✅ Capability
+✅ AgentType
+✅ ToolType
+
+──────────────────────────────────────────────
+
+            Portfolio Domain
+
+✅ FalconPortfolioGateway
+✅ PortfolioMapper
+✅ Portfolio Models
+✅ PerformanceAnalyzer
+✅ DiversificationAnalyzer
+✅ RiskAnalyzer
+✅ HealthAnalyzer
+✅ InsightGenerator
+✅ RecommendationEngine
+✅ PortfolioAnalyzer
+✅ PortfolioService
+
+──────────────────────────────────────────────
+
+This is already a production-quality portfolio domain.
+
+
+-----------------------
+
+Excellent. This is actually a major milestone. Your execution infrastructure is starting to solidify.
+
+Here's where I think the project stands now.
+
+✅ Foundation
+RequestContext
+AdvisorState
+Intent
+Capability
+Approval models
+Common exception hierarchy
+✅ Portfolio Domain
+Portfolio Gateway
+Portfolio Mapper
+Portfolio Models
+Portfolio Analyzer
+Performance Analyzer
+Diversification Analyzer
+Risk Analyzer
+Health Analyzer
+Insight Generator
+Recommendation Engine
+Portfolio Service
+✅ Tool Framework
+BaseTool
+ToolDefinition
+ToolRegistry
+ToolRequest
+ToolResponse
+Tool Exceptions
+
+This is a solid foundation.
+
+What I would build next
+
+Now the execution path should become real.
+
+User
+   │
+   ▼
+AdvisorAgent
+   │
+   ▼
+Planner
+   │
+   ▼
+PlannerResult
+   │
+   ▼
+ToolExecutor   ⭐
+   │
+   ▼
+PortfolioTool  ⭐
+   │
+   ▼
+PortfolioService
+   │
+   ▼
+AdvisorState
+
+Notice something.
+
+We have
+
+Registry
+
+but nothing is actually using it yet.
+
+The next pieces should be
+
+PortfolioTool
+ToolExecutor
+
+Only after that should we build the Planner.
+
+----------
+
+
+RetryPolicy
+
+↓
+
+Exponential Backoff
+
+↓
+
+Circuit Breaker
+
+↓
+
+Jitter
+
+↓
+
+Metrics
+
+
+----------------
+
+Planner
+      │
+      ▼
+ToolExecutor  ⭐
+      │
+      ├── Retry Policy
+      ├── Exception Handling
+      ├── Metrics
+      ├── Timing
+      ├── Continue / Stop
+      └── Parallel Execution (future)
+      │
+      ▼
+PortfolioTool
+      │
+      ▼
+PortfolioService
+      │
+      ▼
+Gateway
+
+
+---------
+
+
+✅ Portfolio
+
+✅ Tool Framework
+
+⬜ Planner ⭐
+
+⬜ AdvisorAgent
+
+⬜ Prompt Registry
+
+⬜ Prompt Builder
+
+⬜ LLM Gateway
+
+⬜ Streaming
+
+⬜ Conversation Persistence
+
+⬜ Memory
+
+⬜ HITL Approval Engine
+
+-----------
+
+I would not make the planner an LLM wrapper. Instead, think of it as a planning engine.
+
+Responsibilities
+
+The planner should answer only four questions:
+
+What is the user's intent?
+What business capabilities are required?
+Which capabilities can run in parallel? (later)
+Does this request require clarification? (later)
+
+Nothing more.
+
+It should not:
+
+execute tools
+know about PortfolioService
+know about ToolRegistry
+know about prompts
+know about LLMs
+
+
+-------------------
+
+Core Domain
+────────────────────
+✅ Portfolio
+
+Execution
+────────────────────
+✅ Tool Registry
+✅ Tool Executor
+
+Planning
+────────────────────
+⬜ Deterministic Planner
+⬜ AdvisorAgent
+
+Generation
+────────────────────
+⬜ Prompt Registry
+⬜ Prompt Builder
+⬜ Claude
+⬜ Streaming
+
+Enterprise
+────────────────────
+⬜ Conversation Persistence
+⬜ Memory
+⬜ Human-in-the-Loop
+⬜ Feedback
+⬜ Evaluation
+⬜ Jira Tool
+
+Future
+────────────────────
+⬜ LLM Planner
+⬜ Parallel Tool Execution
+⬜ Reflection
+⬜ Multi-Agent
+
+---------------------------------------
+Core advisor (Planner → ToolExecutor → PromptBuilder → LLM)
+Enterprise capabilities (Memory, HITL, Feedback, Evaluation, Jira)
+Future enhancements (LLM Planner, Parallel Execution, Multi-Agent)
+
+---------------------------------------
+My recommendation
+
+I would make the deterministic planner:
+
+Detect multiple intent matches internally.
+Return only one primary intent using a priority list.
+Return all required capabilities.
+
+
+--------------------------------------
+| Tool                 | Status    | Responsibility                                                   |
+| -------------------- | --------- | ---------------------------------------------------------------- |
+| ✅ PortfolioTool      | Completed | Portfolio retrieval, analysis, recommendations                   |
+| ⏳ CustomerTool       | Pending   | Customer profile, onboarding, persona                            |∂
+| ⏳ InvestmentTool     | Pending   | Invest, SIP, Redemption, Switch, STP, SWP, Transactions          |
+| ⏳ GoalTool           | Pending   | Goal planning, Retirement, Child Education, Wealth               |
+| ⏳ RiskTool           | Pending   | Risk profiling and assessment                                    |
+| ⏳ DocumentSearchTool | Pending   | RAG, SID, KIM, Factsheet, Annual Report, Scheme, NAV, Comparison |
+| ⏳ MarketTool         | Pending   | Market outlook, news                                             |
+| ⏳ AdvisorTool        | Pending   | Tax, generic advisor reasoning, fallback                         |
+| ⏳ FeedbackTool       | Pending   | User feedback, ratings                                           |
+| ⏳ JiraTool           | Pending   | Create Jira issues                                               |
+
+
+------------------------------
+
+I prefer your idea over putting retries into ToolExecutor.
+
+In fact, I'd take it one step further and think of retry, timeout, metrics, and eventually circuit breaking as execution middleware around the core ToolExecutor. That gives you a highly extensible execution pipeline where each class has a single responsibility:
+
+ToolExecutor → execute a tool.
+RetryExecutor → retry failed executions.
+TimeoutExecutor → enforce time limits.
+MetricsExecutor → collect telemetry.
+
+This is a cleaner enterprise design and aligns well with the architecture you've been building.
+
+----------------------------
+
+Dependency Injection
+
+Your container becomes:
+
+tool_executor = ToolExecutor(tool_registry)
+
+retry_executor = RetryExecutor(
+    tool_executor=tool_executor,
+    retry_policy=RetryPolicy(),
+)
+
+tool_execution_node = ToolExecutionNode(
+    execution_engine=retry_executor,
+)
+
+Tomorrow, if you introduce an execution pipeline:
+
+execution_pipeline = ExecutionPipeline(
+    retry_executor=retry_executor,
+    timeout_executor=timeout_executor,
+    metrics_executor=metrics_executor,
+)
+
+tool_execution_node = ToolExecutionNode(
+    execution_engine=execution_pipeline,
+)
+
+ToolExecutionNode doesn't change.
+
+Future Evolution
+
+This design scales naturally:
+
+                ToolExecutionEngine
+                        ▲
+        ┌───────────────┴───────────────┐
+        │                               │
+ ToolExecutor                   RetryExecutor
+                                        │
+                                        ▼
+                                 TimeoutExecutor
+                                        │
+                                        ▼
+                                 MetricsExecutor
+                                        │
+                                        ▼
+                                  CircuitBreaker
+
+Or, if you prefer composition over inheritance later:
+
+ToolExecutionNode
+        │
+        ▼
+ExecutionPipeline (implements ToolExecutionEngine)
+        │
+        ├── RetryExecutor
+        ├── TimeoutExecutor
+        ├── MetricsExecutor
+        └── ToolExecutor
+Why I like this
+
+The biggest benefit isn't retries—it's dependency inversion. ToolExecutionNode depends only on the concept of "something that can execute a tool." Whether that execution includes retries, timeouts, metrics, or future resilience features is completely hidden behind the ToolExecutionEngine interface. This is consistent with the rest of your architecture and makes future enhancements straightforward without touching the workflow nodes.
+
+
+-------------------
+
+AgentRequest
+      │
+      ▼
+AdvisorAgent
+      │
+      ▼
+AdvisorState
+      │
+      ▼
+AdvisorWorkflow
+      │
+      ▼
+PlannerNode
+      │
+      ▼
+ToolExecutionNode
+      │
+      ▼
+PromptBuilderNode
+      │
+      ▼
+LLMNode
+      │
+      ▼
+AdvisorState
+      │
+      ▼
+AdvisorAgent
+      │
+      ▼
+AgentResponse
+
+---------------------
+
+                    AdvisorComposition
+                            │
+        ┌───────────┬────────┴─────────┬───────────┐
+        ▼           ▼                  ▼           ▼
+PortfolioComp   CustomerComp     GoalComp    ToolComposition
+      │              │               │              │
+      ▼              ▼               ▼              ▼
+PortfolioTool CustomerTool     GoalTool      ToolRegistry
+         └──────────────┬──────────────┘
+                        ▼
+                 ToolExecutionNode
+
+
+-----------------------
+
+FastAPI
+    │
+    ▼
+RequestContext
+(customer_id, query, conversation_id)
+    │
+    ▼
+AdvisorService
+    │
+    ▼
+Orchestrator
+    │
+    ├── Get/Create Conversation
+    ├── Save User Message
+    ├── Load History
+    │
+    ▼
+AdvisorState
+    │
+    ├── request
+    └── history
+    │
+    ▼
+AdvisorAgent
+    │
+    ▼
+AdvisorWorkflow (LangGraph)
+    │
+    ▼
+AdvisorState (enriched)
+    │
+    ▼
+AdvisorAgent
+    │
+    ▼
+AgentResponse
+    │
+    ▼
+Orchestrator
+    ├── Save Assistant Message
+    └── Return

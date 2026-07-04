@@ -1,9 +1,11 @@
 from typing import Any
 from dataclasses import dataclass, field
+from uuid import UUID
 from app.schemas.responses.advisor import SourceResponse
 
 @dataclass(slots=True)
 class AgentResponse:
+    conversation_id: UUID
     answer: str
     sources: list[SourceResponse]
 

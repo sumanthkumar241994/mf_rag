@@ -25,9 +25,11 @@ class Settings(BaseSettings):
     HIGH_PRIORITY_QUEUE_URL: str
     MEDIUM_PRIORITY_QUEUE_URL: str
     LOW_PRIORITY_QUEUE_URL: str
-
+    X_KARAT_API_KEY: str
+    X_API_KEY: str
     REDIS_URL: str
 
+    MF_API_BASE_URL: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 

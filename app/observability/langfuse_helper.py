@@ -29,6 +29,14 @@ langfuse = get_client()
 
 #     )
 
+def get_trace_id() -> str | None:
+    return langfuse.get_current_trace_id()
+
+
+def get_observation_id() -> str | None:
+    return langfuse.get_current_observation_id()
+
+
 def update_generation(request: LLMRequest, answer: str, usage: LLMUsage, metrics: LLMMetrics) -> None:
     langfuse.update_current_generation(
         input = {
@@ -51,3 +59,4 @@ def update_generation(request: LLMRequest, answer: str, usage: LLMUsage, metrics
             "finish_reason": metrics.finish_reason
         }
     )
+

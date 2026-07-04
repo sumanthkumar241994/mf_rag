@@ -1,38 +1,37 @@
-#                   Version 1
-# from fastapi import Depends
-
-# from app.api.dependencies.retrieval import get_context_builder
-# from app.api.dependencies.llm import get_llm_gateway
-# from app.api.dependencies.tool import get_tool_executor
-
-# from app.retrieval.context_builder import ContextBuilder
-# from app.llm_gateway.llm_gateway import LLMGateway
-# from app.tools.executor.tool_executor import ToolExecutor
-
-# from app.agents.advisor_agent import AdvisorAgent
-
-# def get_advisor_agent(
-#     tool_executor: ToolExecutor = Depends(get_tool_executor),
-#     llm_gateway: LLMGateway = Depends(get_llm_gateway),
-#     context_builder: ContextBuilder = Depends(get_context_builder)
-# ) -> AdvisorAgent:
-#     return AdvisorAgent(
-#         tool_executor=tool_executor,
-#         context_builder=context_builder,
-#         llm_gateway=llm_gateway
-#     )
-
-
 from fastapi import Depends
-
-from app.api.dependencies.workflow import get_advisor_workflow
 from app.agents.advisor_agent import AdvisorAgent
+from app.api.dependencies.portfolio import get_portfolio_gateway
+from app.business.portfolio.gateways.falcon_portfolio_gateway import FalconPortfolioGateway
+from app.business.portfolio.gateways.portfolio_gateway import PortfolioGateway
+from app.composition.advisor_composition import AdvisorComposition
+from app.composition.business.portfolio_composition import PortfolioComposition
+from app.composition.llm_composition.gemma_composition import LLMComposition
+from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
+from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
+from app.composition.tool_composition import ToolComposition
 
-from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
+_advisor : AdvisorComposition | None = None
 
 def get_advisor_agent(
-    workflow: AdvisorWorkflow = Depends(get_advisor_workflow)
+    portfolio_gateway: FalconPortfolioGateway = Depends(get_portfolio_gateway)
 ) -> AdvisorAgent:
-    return AdvisorAgent(
-        advisor_workflow=workflow
-    )
+    global _advisor
+    if _advisor is None:
+        portfolio = PortfolioComposition(portfolio_gateway=portfolio_gateway)
+        planner = DeterministicPlannerComposition()
+        tools = ToolComposition()
+        prompt = AdvisorPromptComposition()
+        llm = LLMComposition()
+
+        advisor = AdvisorComposition(
+            portfolio=portfolio,
+            planner=planner,
+            tools=tools,
+            prompt=prompt,
+            llm=llm
+        )
+
+        _advisor =advisor
+        return _advisor.agent
+    
+    return _advisor.agent

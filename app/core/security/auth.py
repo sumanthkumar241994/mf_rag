@@ -38,5 +38,5 @@ def verify_token(token: str) -> dict:
         return payload
     except ExpiredSignatureError:
         raise ValueError("Token has expired")
-    except JWTError:
-        raise ValueError("Invalid token")
+    except JWTError as ex:
+        raise ValueError(f"Invalid token {str(ex)}")

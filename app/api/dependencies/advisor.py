@@ -19,20 +19,50 @@
 #     )
 
 from fastapi import Depends
-from app.services.advisor_service import AdvisorService
 from app.agents.advisor_agent import AdvisorAgent
-from app.api.dependencies.agent import get_advisor_agent
+from app.api.dependencies.portfolio import get_portfolio_gateway
+from app.business.portfolio.gateways.portfolio_gateway import PortfolioGateway
+from app.composition.advisor_composition import AdvisorComposition
+from app.composition.business.portfolio_composition import PortfolioComposition
+from app.composition.llm_composition.gemma_composition import LLMComposition
+from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
+from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
+from app.composition.tool_composition import ToolComposition
+from app.services.advisor_service import AdvisorService
 from app.api.dependencies.orchestrator import get_orchestrator
 from app.orchestration.orchestrator import Orchestrator
 
+_advisor : AdvisorComposition | None = None
+
+def get_advisor_agent(
+    portfolio_gateway: PortfolioGateway = Depends(get_portfolio_gateway)
+) -> AdvisorAgent:
+    global _advisor
+    if _advisor is None:
+        portfolio = PortfolioComposition(portfolio_gateway=portfolio_gateway)
+        planner = DeterministicPlannerComposition()
+        tools = ToolComposition()
+        prompt = AdvisorPromptComposition()
+        llm = LLMComposition()
+
+        advisor = AdvisorComposition(
+            portfolio=portfolio,
+            planner=planner,
+            tools=tools,
+            prompt=prompt,
+            llm=llm
+        )
+
+        _advisor =advisor
+        return _advisor.agent
+    
+    return _advisor.agent
 
 
-async def get_advisor_service(
-    advisor_agent: AdvisorAgent=Depends(get_advisor_agent), 
+def get_advisor_service(
     orchestrator: Orchestrator=Depends(get_orchestrator)
 ) -> AdvisorService:
 
     return AdvisorService(
-        advisor_agent=advisor_agent,
         orchestrator=orchestrator
     )

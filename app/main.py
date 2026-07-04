@@ -6,7 +6,7 @@ from pydantic_settings.main import re
 from app.core.config import settings
 from app.core.middleware import (
     register_tracing_middleware, 
-    register_logging_middleware,
+    register_request_context_middleware,
     register_authentication_middleware,
     register_session_middleware
 )
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # import debugpy
 
-# debugpy.listen(("0.0.0.0", 5679))
+# debugpy.listen(("0.0.0.0", 5676))
 # print("⏳ Waiting for debugger to attach...")
 # debugpy.wait_for_client()  # Execution will pause here until debugger is attached
 # print("✅ Debugger Attached. Running Falcon App...")
@@ -55,7 +55,7 @@ def create_application() -> FastAPI:
                 )
     setup_logging()
     register_tracing_middleware(app)
-    register_logging_middleware(app)
+    register_request_context_middleware(app)
     register_session_middleware(app)
     register_authentication_middleware(app)
 

@@ -1,27 +1,84 @@
-from app.schemas.conversation.cache_message import CacheMessage
+from app.business.advisor.enums.tool_type import ToolType
+from app.prompts.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
 from app.workflows.advisor.advisor_state import AdvisorState
+from app.business.advisor.models.prompt import Prompt
+
 
 class AdvisorPromptBuilder:
     """
-    Builds the user prompt for the Advisor workflow.
+    Builds the final prompt supplied to the LLM.
     """
 
-    @staticmethod
-    def build(state: AdvisorState):
-        parts : list[str] = []
-        if state['history']:
-            parts.append("## Conversation History")
+    def build(
+        self,
+        state: AdvisorState,
+    ) -> Prompt:
 
-            for message in state['history']:
-                parts.append(f"{message.role}: {message.content}")
-        
-        if state['context']:
-            parts.append("")
-            parts.append("## Retrieved Context")
-            parts.append(state['context'])
+        sections: list[str] = []
 
-        parts.append("")
-        parts.append("## Current User Question")
-        parts.append(state['query'])
+        successful_tools = {
+            result["tool"]
+            for result in state.tool_results
+            if result["success"]
+        }
 
-        return "\n".join(parts)
+        # Conversation History
+        if state.history:
+
+            sections.append("## Conversation History")
+
+            for message in state.history:
+                sections.append(
+                    f"{message.role}: {message.content}"
+                )
+
+            sections.append("")
+
+        # Planner
+        if state.planner_result:
+
+            sections.append("## User Intent")
+            sections.append(state.planner_result.intent.value)
+
+            sections.append("")
+
+        # Portfolio Analysis
+        if ToolType.PORTFOLIO in successful_tools and state.portfolio_analysis:
+
+            sections.append("## Portfolio Analysis")
+            sections.append(str(state.portfolio_analysis))
+            sections.append("")
+
+        #
+        # Retrieved Context
+        #
+        if state.llm_context:
+
+            sections.append("## Retrieved Context")
+            sections.append(state.llm_context.context)
+            sections.append("")
+
+        #
+        # Errors
+        #
+        # if state.errors:
+
+        #     sections.append("## Notes")
+
+        #     for error in state.errors:
+        #         sections.append(
+        #             f"- {error.message}"
+        #         )
+
+        #     sections.append("")
+
+        #
+        # User Question
+        #
+        sections.append("## User Question")
+        sections.append(state.request.query)
+
+        return Prompt(
+            system_prompt=ADVISOR_SYSTEM_PROMPT,
+            user_prompt="\n".join(sections),
+        )

@@ -32,12 +32,7 @@ class ConversationRepository:
         result = await self.db.execute(stmt)
 
         return result.scalar_one_or_none()
-
-    async def get_by_session_id(self, session_id: UUID) -> Optional[Conversation]:
-        stmt = select(Conversation).where(Conversation.session_id == session_id)
-        result = await self.db.execute(stmt)
-
-        return result.scalar_one_or_none()
+        
 
     async def get_active_conversation(self, customer_id: str, workflow: str) -> Optional[Conversation]:
         stmt = select(Conversation).where(

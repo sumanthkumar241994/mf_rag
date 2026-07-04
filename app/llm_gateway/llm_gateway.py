@@ -4,7 +4,7 @@ from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_stream_response import LLMStreamResponse
 
-from langfuse import get_client
+import app.observability.langfuse_helper as LangfuseHelper
 
 from app.enums.stream_event_type import StreamEventType
 from app.events.models.llm_generation_completed_event import LLMGenerationCompletedEvent
@@ -34,15 +34,11 @@ class LLMGateway:
         #     usage=response.usage,
         #     metrics=response.metrics
         # )
-        langfuse = get_client()
-        
-        trace_id = langfuse.get_current_trace_id()
-        parent_observation_id = langfuse.get_current_observation_id()
 
         await self.sqs_publisher.publish(
             LLMGenerationCompletedEvent(
-                trace_id=trace_id,
-                parent_observation_id=parent_observation_id,
+                trace_id=LangfuseHelper.get_trace_id(),
+                parent_observation_id=LangfuseHelper.get_observation_id(),
                 request=request,
                 answer=response.answer,
                 usage=response.usage,
@@ -60,15 +56,11 @@ class LLMGateway:
                                 input_tokens=event.response.usage.input_tokens,
                                 output_tokens=event.response.usage.output_tokens
                             )
-                langfuse = get_client()
-
-                trace_id = langfuse.get_current_trace_id()
-                parent_observation_id = langfuse.get_current_observation_id()
 
                 await self.sqs_publisher.publish(
                         LLMGenerationCompletedEvent(
-                            trace_id=trace_id,
-                            parent_observation_id=parent_observation_id,
+                            trace_id=LangfuseHelper.get_trace_id(),
+                            parent_observation_id=LangfuseHelper.get_observation_id(),
                             request=request,
                             answer=event.response.answer,
                             usage=event.response.usage,
