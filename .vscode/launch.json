@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "FastAPI",
+            "name": "Launch FastAPI",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
@@ -11,6 +11,15 @@
                 "--reload"
             ],
             "jinja": true
+        },
+        {
+            "name": "Attach FastAPI",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5676
+            }
         }
     ]
 }

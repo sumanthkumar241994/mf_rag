@@ -2,7 +2,7 @@ import logging
 from app.observability.log_filters import RequestContextFilter
 
 def setup_logging():
-    formatter = logging.Formatter('[%(asctime)s %(request_id)s %(client_ip)s '
+    formatter = logging.Formatter('[%(asctime)s %(correlation_id)s %(client_ip)s '
         '%(module)s:%(lineno)d] %(message)s'
     )
 

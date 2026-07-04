@@ -9,10 +9,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         token = extract_token(request)
         payload = verify_token(token=token)
-        request.state.context = RequestContext(
-            customer_id=payload['user'],
-            session_id=request.headers.get('x-session-id')
-        )
+        request.state.customer_id = payload['user']
         return await call_next(request)
 
         

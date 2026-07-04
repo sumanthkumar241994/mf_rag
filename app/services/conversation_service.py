@@ -30,7 +30,6 @@ class ConversationService:
     def _create_conversation(
         self,
         customer_id: str,
-        session_id: UUID,
         workflow: str,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
@@ -39,7 +38,6 @@ class ConversationService:
 
         return Conversation(
             customer_id=customer_id,
-            session_id=session_id,
             workflow=workflow,
             title=title,
             status=ConversationStatus.ACTIVE.value,
@@ -90,7 +88,6 @@ class ConversationService:
     async def create_conversation(
         self,
         customer_id: str,
-        session_id: UUID,
         workflow: str,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
@@ -101,7 +98,6 @@ class ConversationService:
 
         conversation = self._create_conversation(
             customer_id=customer_id,
-            session_id=session_id,
             workflow=workflow,
             title=title,
             metadata=metadata
@@ -115,20 +111,19 @@ class ConversationService:
     async def get_or_create_conversation(
         self,
         customer_id: str,
-        session_id: UUID,
+        conversation_id: UUID,
         workflow: str,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
-        conversation = await self.uow.conversations.get_by_session_id(session_id)
+        conversation = await self.uow.conversations.get_by_id(conversation_id=conversation_id)
 
         if conversation:
             return conversation
         
-        logger.info(f"Creating new conversation for session: {session_id}")
+        logger.info(f"Creating new conversation for customer: {customer_id}")
         return await self.create_conversation(
             customer_id=customer_id,
-            session_id=session_id,
             workflow=workflow,
             title=title,
             metadata=metadata

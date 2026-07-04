@@ -2,27 +2,30 @@ from dataclasses import asdict
 import time
 from typing import AsyncIterator
 
-from app.agents.base_agent import BaseAgent
+from app.agents.advisor_agent import AdvisorAgent
+from app.core.middleware.request_context_vars import trace_id_ctx
+from app.dtos.request_context import RequestContext
 from app.enums.stream_event_type import StreamEventType
-from app.schemas.requests.chat import ChatRequest
-from app.dtos.agents.agent_request import AgentRequest
 from app.dtos.agents.agent_response import AgentResponse
 from app.enums.conversation import MessageRole
 from app.services.conversation_service import ConversationService
+from app.workflows.advisor.advisor_state import AdvisorState
+
+import app.observability.langfuse_helper as LangfuseHelper
 
 
 class Orchestrator:
-    def __init__(self, conversation_service: ConversationService):
+    def __init__(self, conversation_service: ConversationService, agent: AdvisorAgent):
         self.conversation_service = conversation_service
-
-    async def run(self, request: ChatRequest, agent: BaseAgent) -> AgentResponse:
+        self.agent = agent
+    async def run(self, request: RequestContext) -> AgentResponse:
         start_time = time.perf_counter() 
 
         async with self.conversation_service.uow:
 
             conversation = await self.conversation_service.get_or_create_conversation(
                                 customer_id=request.customer_id,
-                                session_id=request.session_id,
+                                conversation_id=request.conversation_id,
                                 workflow='advisor'
                             )
 
@@ -34,9 +37,18 @@ class Orchestrator:
 
             history = await self.conversation_service.get_recent_context(conversation.id)
 
-            agent_request = AgentRequest(query=request.query, conversation=history)
+            request.conversation_id = conversation.id
+            trace_id = LangfuseHelper.get_trace_id()
 
-            response = await agent.run(agent_request)
+            trace_id_ctx.set(trace_id)
+
+            state = AdvisorState(
+                request=request, 
+                history=history,
+                trace_id=LangfuseHelper.get_trace_id(),
+            )
+
+            response = await self.agent.run(state)
 
             await self.conversation_service.save_message(
                 conversation=conversation,
@@ -45,15 +57,15 @@ class Orchestrator:
                 metadata=response.metadata
             )
             response.response_time_ms = round((time.perf_counter()-start_time) *1000)
-
+            
         return response
     
-    async def stream(self, request: ChatRequest, agent: BaseAgent) -> AsyncIterator[str]:
+    async def stream(self, request: RequestContext) -> AsyncIterator[str]:
         
         async with self.conversation_service.uow:
             conversation = await self.conversation_service.get_or_create_conversation(
                                 customer_id=request.customer_id,
-                                session_id=request.session_id,
+                                conversation_id=request.conversation_id,
                                 workflow='advisor'
                             )
             await self.conversation_service.save_message(
@@ -64,11 +76,14 @@ class Orchestrator:
 
             history = await self.conversation_service.get_recent_context(conversation.id)
 
-            agent_request = AgentRequest(query=request.query, conversation=history)
-
+            state = AdvisorState(
+                request=request,
+                history=history,
+                trace_id=LangfuseHelper.get_trace_id()
+            )
             stream_response = None 
 
-            async for event in agent.stream(agent_request):
+            async for event in self.agent.stream(state):
                 if event.type == StreamEventType.TOKEN.value:
                     yield event.token
                 elif event.type == StreamEventType.COMPLETED.value:
@@ -79,8 +94,8 @@ class Orchestrator:
                 role=MessageRole.ASSISTANT.value,
                 content=stream_response.answer,
                 metadata={
-                    "usage": asdict(stream_response.usage),
-                    "metrics": asdict(stream_response.metrics)
+                    "llm_usage": asdict(stream_response.usage),
+                    "llm_metrics": asdict(stream_response.metrics)
                 }
 
             )

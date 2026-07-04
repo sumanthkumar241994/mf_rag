@@ -67,15 +67,61 @@
 #             response_time_ms=response_time_ms
 #         )
 
+# version 2
+
+# from dataclasses import asdict
+# import time
+# from typing import AsyncIterator
+
+# from app.agents.base_agent import BaseAgent
+# from app.dtos.agents.agent_request import AgentRequest
+# from app.dtos.request_context import RequestContext
+# from app.enums.workflow import WorkflowType
+# from app.workflows.advisor.advisor_state import AdvisorState
+# from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
+# from app.dtos.agents.agent_response import AgentResponse
+
+# class AdvisorAgent(BaseAgent):
+#     workflow = WorkflowType.ADVISOR.value
+
+#     def __init__(
+#         self,
+#         advisor_workflow: AdvisorWorkflow
+#     ):
+#         self._advisor_workflow = advisor_workflow
+    
+#     async def run(self, request: AgentRequest) -> AgentResponse:
+#         state = AdvisorState(request=request)
+#         state = await self._advisor_workflow.invoke(request)
+
+#         metadata = dict(workflow.metadata)
+
+#         if workflow.llm_usage:
+#             metadata['llm_usage'] = asdict(workflow.llm_usage)
+        
+#         if workflow.llm_metrics:
+#             metadata['llm_metrics'] =asdict(workflow.llm_metrics)
+
+#         # Return agent response
+#         return AgentResponse(
+#             answer=state.llm_response.answer if state.llm_res,
+#             sources = workflow.sources,
+#             chunk_count=workflow.retrieved_chunks,
+#             metadata=metadata
+#         )
+    
+#     async def stream(self, request: AgentRequest) -> AsyncIterator[str]:
+#         async for event in self.advisor_workflow.stream(request):
+#             yield event
+
 
 
 from dataclasses import asdict
-import time
 from typing import AsyncIterator
 
 from app.agents.base_agent import BaseAgent
-from app.dtos.agents.agent_request import AgentRequest
 from app.enums.workflow import WorkflowType
+from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
 from app.dtos.agents.agent_response import AgentResponse
 
@@ -86,27 +132,27 @@ class AdvisorAgent(BaseAgent):
         self,
         advisor_workflow: AdvisorWorkflow
     ):
-        self.advisor_workflow = advisor_workflow
+        self._advisor_workflow = advisor_workflow
     
-    async def run(self, request: AgentRequest) -> AgentResponse:
-        workflow = await self.advisor_workflow.invoke(request)
+    async def run(self, state: AdvisorState) -> AgentResponse:
+        state = await self._advisor_workflow.invoke(state)
 
-        metadata = dict(workflow.metadata)
+        metadata = state.metadata
 
-        if workflow.llm_usage:
-            metadata['llm_usage'] = asdict(workflow.llm_usage)
-        
-        if workflow.llm_metrics:
-            metadata['llm_metrics'] =asdict(workflow.llm_metrics)
+        if state.llm_response and state.llm_response.usage is not None:
+            metadata['llm_usage'] = asdict(state.llm_response.usage)
 
-        # Return agent response
+        if state.llm_response and state.llm_response.metrics is not None:
+            metadata['llm_metrics'] = asdict(state.llm_response.metrics)
+
         return AgentResponse(
-            answer=workflow.answer,
-            sources = workflow.sources,
-            chunk_count=workflow.retrieved_chunks,
+            conversation_id=state.request.conversation_id,
+            answer = state.llm_response.answer if state.llm_response else "",
+            sources = state.sources,
+            chunk_count=state.sources,
             metadata=metadata
         )
     
-    async def stream(self, request: AgentRequest) -> AsyncIterator[str]:
-        async for event in self.advisor_workflow.stream(request):
+    async def stream(self, state: AdvisorState) -> AsyncIterator[str]:
+        async for event in self.advisor_workflow.stream(state):
             yield event

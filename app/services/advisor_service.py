@@ -57,37 +57,31 @@
 
 from typing import AsyncIterator
 
-from httpx import request
-
-from app.agents.advisor_agent import AdvisorAgent
 from app.dtos.agents.agent_response import AgentResponse
-from app.enums.conversation import MessageRole
+from app.dtos.request_context import RequestContext
 from app.orchestration.orchestrator import Orchestrator
-from app.schemas.requests.chat import ChatRequest
 
 from app.observability.tracing import trace_workflow
 
 class AdvisorService:
     def __init__(
         self,
-        advisor_agent: AdvisorAgent,
         orchestrator: Orchestrator
     ):
-        self.advisor_agent = advisor_agent
         self.orchestrator = orchestrator
     
     @trace_workflow("advisor_chat")
     async def chat(
         self,
-        request: ChatRequest
+        request: RequestContext
     ) -> AgentResponse:
-        return await self.orchestrator.run(request=request, agent=self.advisor_agent)
+        return await self.orchestrator.run(request=request)
     
     @trace_workflow("advisor_stream_chat")
     async def stream(
         self,
-        request: ChatRequest
+        request: RequestContext
     ) -> AsyncIterator[str]:
         print(f"stream request: {request}")
-        async for token in self.orchestrator.stream(request=request, agent=self.advisor_agent):
+        async for token in self.orchestrator.stream(request=request):
             yield token

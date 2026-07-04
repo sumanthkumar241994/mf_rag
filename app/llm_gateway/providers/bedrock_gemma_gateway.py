@@ -32,7 +32,6 @@ class GemmaProvider(LLMProvider):
         body = self._build_request_body(request)
 
         start_time = time.perf_counter()
-        
         response = await asyncio.to_thread(self.bedrock_client.invoke_model,modelId=self.MODEL_ID, body=json.dumps(body))
 
         latency_ms = round((time.perf_counter() - start_time)*1000)

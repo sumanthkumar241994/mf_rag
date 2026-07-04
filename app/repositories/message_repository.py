@@ -48,7 +48,7 @@ class MessageRepository:
 
         return result.scalar_one_or_none()
     
-    async def get_recent(self, conversation_id: UUID, limit: int = 20) -> list[Message]:
+    async def get_recent(self, conversation_id: UUID, limit: int = 20) -> list[Message] :
         stmt = select(Message).where(
             Message.conversation_id==conversation_id
         ).order_by(

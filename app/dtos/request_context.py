@@ -1,6 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
+from uuid import UUID
 
 @dataclass(slots=True)
 class RequestContext:
-    customer_id: str
-    session_id: str | None = None
+    query: str
+    customer_id: str | None = None
+    conversation_id: UUID | None = None
