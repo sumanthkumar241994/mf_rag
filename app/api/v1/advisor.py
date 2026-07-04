@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import StreamingResponse
 
@@ -31,6 +32,33 @@ async def chat(
 
     return advisor_response
 
+# version 1
+# @router.post("/chat/stream")
+# async def stream_chat(
+#     response: Response,
+#     request: RequestContext = Depends(build_request_context), 
+#     advisor_service: AdvisorService=Depends(get_advisor_service)
+# ):
+#     async def event_generator():
+#         async for token in advisor_service.stream(request):
+#             yield f"data: {token}\n\n"
+#         yield "event:done\ndata: [DONE]\n\n"
+
+
+#         if trace_id := trace_id_ctx.get():
+#             response.headers['X-Trace-Id'] = trace_id
+    
+#     return StreamingResponse(
+#         event_generator(),
+#         media_type="text/event-stream",
+#         headers={
+#             "Cache-Control": "no-cache",
+#             "Connection": "keep-alive",
+#             "X-Accel-Buffering": "no"
+#         }
+#     )
+
+
 @router.post("/chat/stream")
 async def stream_chat(
     response: Response,
@@ -38,15 +66,12 @@ async def stream_chat(
     advisor_service: AdvisorService=Depends(get_advisor_service)
 ):
     async def event_generator():
-        async for token in advisor_service.stream(request):
-            yield f"data: {token}\n\n"
-        yield "event:done\ndata: [DONE]\n\n"
+        async for event in advisor_service.stream(request):
+            yield (
+                f"event: {event.type}\n"
+                f"data: {json.dumps(event.to_dict())}\n\n"
+            )
 
-    trace_id = LangfuseHelper.get_trace_id()
-
-    if trace_id:
-        response.headers["X-Trace-Id"] = trace_id
-    
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",

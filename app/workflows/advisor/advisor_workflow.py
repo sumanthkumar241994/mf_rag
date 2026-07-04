@@ -62,7 +62,9 @@
 #         return state
 
 
+from typing import AsyncIterator
 from langgraph.graph import StateGraph, START, END
+from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.workflow_decision import WorkflowDecision
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.advisor.nodes.llm_node import LLMNode
@@ -129,7 +131,7 @@ class AdvisorWorkflow:
         }
 
         for tool in state.planner_result.selected_tools:
-            if tool not in successful_tools:
+            if tool.value not in successful_tools:
                 return WorkflowDecision.TOOL_FAILURE.value
 
         return WorkflowDecision.CONTINUE.value
@@ -144,7 +146,23 @@ class AdvisorWorkflow:
         return result
 
 
-    async def stream(self, state: AdvisorState):
-        pass
-        # async for event in self.generate_answer_node.stream(state):
-        #     yield event
+    async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+
+        async for event in self._planner_node.stream(state):
+            yield event
+        
+        async for event in self._tool_execution_node.stream(state):
+            yield event
+
+        if self._route_after_tool_execution(state) == WorkflowDecision.TOOL_FAILURE.value:
+            async for event in self._tool_failure_node.stream(state):
+                yield event
+            
+            return
+
+        async for event in self._prompt_builder_node.stream(state):
+            yield event
+        
+
+        async for event in self._llm_node.stream(state):
+            yield event
