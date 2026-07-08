@@ -1,7 +1,8 @@
+from sqlalchemy.sql.cache_key import CacheConst
 from app.business.advisor.enums.capabilities import Capability
 from app.business.advisor.enums.tool_type import ToolType
 from app.business.customer.customer_service import CustomerService
-from app.business.customer.gateway.falcon_customer_gateway import FalconCustomerGateway
+from app.business.customer.gateway.cached_customer_gateway import CachedCustomerGateway
 from app.business.customer.mapper.customer_mapper import CustomerMapper
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.customer_tool import CustomerTool
@@ -11,7 +12,7 @@ class CustomerComposition:
 
     def __init__(
         self,
-        customer_gateway: FalconCustomerGateway,
+        customer_gateway: CachedCustomerGateway,
     ):
         self.customer_mapper = CustomerMapper()
 

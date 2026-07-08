@@ -28,9 +28,6 @@ class FalconPortfolioGateway(PortfolioGateway):
             response = await self.api_client.get(
                 url=self.PORTFOLIO_END_POINT,
                 options=RequestOptions(
-                    headers={
-                        "x-customer-id": context.customer_id
-                    },
                     context=context
                 )
             )
