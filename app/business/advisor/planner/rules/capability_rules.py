@@ -10,13 +10,16 @@ CAPABILITY_RULES: list[CapabilityRule] = [
 
     CapabilityRule(
         capability=Capability.CUSTOMER,
-        keywords=["customer", "account", "investor"],
-        synonyms=["my account", "customer account"],
-        examples=[
-            "Show my customer details",
-            "What is my account status?"
+        keywords=[
+            "eligible",
+            "eligibility",
         ],
-        priority=10,
+        synonyms=[
+            "can i invest",
+            "am i eligible",
+            "eligible to invest",
+        ],
+        priority=20,
     ),
 
     CapabilityRule(
@@ -41,7 +44,13 @@ CAPABILITY_RULES: list[CapabilityRule] = [
 
     CapabilityRule(
         capability=Capability.ONBOARDING,
-        keywords=["onboarding", "kyc", "registration"],
+        keywords=[
+            "onboarding",
+            "kyc",
+            "registration",
+            "bank verification",
+            "nominee",
+        ],
         synonyms=[
             "account opening",
             "verification",
@@ -86,8 +95,19 @@ CAPABILITY_RULES: list[CapabilityRule] = [
 
     CapabilityRule(
         capability=Capability.INVESTMENT,
-        keywords=["invest", "investment"],
-        synonyms=["start investing"],
+        keywords=[
+            "buy",
+            "purchase",
+            "redeem",
+            "switch",
+            "start sip",
+            "stop sip",
+            "invest in",
+        ],
+        synonyms=[
+            "make investment",
+            "invest now",
+        ],
     ),
 
     CapabilityRule(
