@@ -8308,6 +8308,9 @@ Option 3: Ask a follow-up question
 
 If you prefer not to assume values, the advisor should ask for the missing information.
 
+
+
+
 For example:
 
 I can calculate that for you. Do you already have any money invested toward this goal? Also, what annual return would you like to assume, or should I use a standard planning assumption?
@@ -8351,3 +8354,49 @@ Planner
 
 
 ---------------------
+
+
+                User
+                  │
+                  ▼
+            Advisor Workflow
+                  │
+                  ▼
+              Goal Tool
+                  │
+                  ▼
+             Goal Service
+                  │
+                  ▼
+        PlanningDataProvider
+                  │
+          ┌───────┴────────┐
+          │                │
+      Redis Hit       Redis Miss
+          │                │
+          │        asyncio.gather()
+          │          ┌──────────────┐
+          │          │              │
+          │     Customer API   Portfolio API
+          │          │              │
+          │          └──────┬───────┘
+          │                 │
+          └────────────► Cache ◄────────────┘
+                            │
+                            ▼
+                 PlanningContextBuilder
+                            │
+                            ▼
+                    PlanningContext
+                            │
+                            ▼
+                    ParameterResolver
+                            │
+                            ▼
+                    GoalCalculator
+                            │
+                            ▼
+                     GoalAnalyzer
+                            │
+                            ▼
+                    state.goal_analysis
