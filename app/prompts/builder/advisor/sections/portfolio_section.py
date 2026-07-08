@@ -5,12 +5,6 @@ from app.workflows.advisor.advisor_state import AdvisorState
 
 class PortfolioSection(BaseSection):
     def build(self, state: AdvisorState) -> list[str]:
-        successful_tools = {
-            result['tool']
-            for result in state.tool_results 
-            if result['success']
-        }
-
         if not self.tool_executed(state, ToolType.PORTFOLIO):
             return []
 

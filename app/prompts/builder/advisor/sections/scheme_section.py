@@ -5,13 +5,7 @@ from app.workflows.advisor.advisor_state import AdvisorState
 
 class SchemeSection(BaseSection):
     def build(self, state: AdvisorState) -> list[str]:
-        successful_tools = {
-            result['tool']
-            for result in state.tool_results
-            if result['success']
-        }
-
-        if self.tool_executed(state, ToolType.SCHEME):
+        if not self.tool_executed(state, ToolType.SCHEME):
             return []
 
         lines: list[str] = []

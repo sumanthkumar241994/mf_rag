@@ -87,7 +87,6 @@ INTENT_RULES: dict[Intent, list[str]] = {
     ],
 
     Intent.EXECUTION: [
-        "invest",
         "buy",
         "purchase",
         "redeem",

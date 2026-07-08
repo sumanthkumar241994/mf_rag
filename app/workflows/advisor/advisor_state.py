@@ -9,6 +9,7 @@ from app.business.advisor.models.advisor_error import AdvisorError
 from app.business.advisor.models.planner_result import PlannerResult
 from app.business.advisor.models.prompt import Prompt
 from app.business.approval.models.approval_context import ApprovalContext
+from app.business.customer.models.customer import Customer
 from app.business.portfolio.analysis.models import insight
 from app.business.portfolio.analysis.models.portfolio_analysis import PortfolioAnalysis
 from app.business.scheme.models.scheme_details import SchemeDetails
@@ -38,6 +39,8 @@ class AdvisorState:
     #planner
     planner_result : PlannerResult | None = None
 
+    # Customer
+    customer: Customer | None = None
     # Domain results
     portfolio_analysis: PortfolioAnalysis | None = None
     

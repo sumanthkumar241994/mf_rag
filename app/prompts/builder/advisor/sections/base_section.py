@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
 from app.business.advisor.enums.tool_type import ToolType
 from app.workflows.advisor.advisor_state import AdvisorState
@@ -26,7 +25,7 @@ class BaseSection(ABC):
 
     @staticmethod
     def tool_executed(state: AdvisorState, tool: ToolType) -> bool:
-        return Any(result['tool'] == tool and result['success'] for result in state.tool_results)
+        return any(result['tool'] == tool.value and result['success'] for result in state.tool_results)
 
     @staticmethod
     def add_field(lines: list[str], label: str, value):

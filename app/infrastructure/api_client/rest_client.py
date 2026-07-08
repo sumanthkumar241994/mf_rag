@@ -135,6 +135,7 @@ class RestApiClient(BaseApiClient):
 
         headers['X-Karat-Api-Key'] = settings.X_KARAT_API_KEY
         headers['Api-Key'] = settings.X_API_KEY
+        headers['X-Customer-Id'] = str(options.context.customer_id)
 
         return headers
 
