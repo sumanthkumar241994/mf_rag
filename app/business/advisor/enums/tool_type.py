@@ -9,6 +9,8 @@ class ToolType(StrEnum):
     """
     # Portfolio
     PORTFOLIO = "portfolio"
+    #Scheme
+    SCHEME = 'scheme'
     # Customer
     CUSTOMER = "customer"
     # Investment Operations

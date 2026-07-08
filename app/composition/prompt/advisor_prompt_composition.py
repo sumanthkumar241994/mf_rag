@@ -1,4 +1,4 @@
-from app.prompts.advisor.prompt_builder import AdvisorPromptBuilder
+from app.prompts.builder.advisor.advisor_prompt_builder import AdvisorPromptBuilder
 
 
 class AdvisorPromptComposition:

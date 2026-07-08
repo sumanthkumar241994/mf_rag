@@ -2,14 +2,14 @@
 
 from alembic import context
 from sqlalchemy.sql.functions import user
+from app.prompts.templates.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
 from app.workflows.advisor.advisor_state import AdvisorState
 
 from app.dtos.llm.llm_request import LLMRequest
 
 from app.llm_gateway.llm_gateway import LLMGateway
 
-from app.prompts.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
-from app.prompts.advisor.prompt_builder import AdvisorPromptBuilder
+from app.prompts.builder.advisor.advisor_prompt_builder import AdvisorPromptBuilder
 from app.observability.tracing import trace_step
 
 

@@ -42,6 +42,14 @@ class ToolExecutor(ToolExecutionEngine):
                     fatal=True
                 )
             )
+            
+            request.state.tool_results.append(
+                {
+                    "tool": tool_name,
+                    "success": False,
+                    "execution_time_ms": execution_time_ms,
+                }
+            )
 
             request.state.metadata.setdefault("tools", []).append(
                 {

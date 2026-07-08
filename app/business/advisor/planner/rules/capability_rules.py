@@ -141,15 +141,20 @@ CAPABILITY_RULES: list[CapabilityRule] = [
             "scheme",
             "fund",
             "mutual fund",
-        ],
-        synonyms=[
-            "equity fund",
-            "debt fund",
-            "hybrid fund",
+            "elss",
+            "index fund",
+            "etf",
+            "balanced advantage",
+            "contra",
             "small cap",
             "large cap",
             "mid cap",
             "flexi cap",
+            "equity fund",
+            "debt fund",
+        ],
+        synonyms=[
+            "hybrid fund"
         ],
         examples=[
             "Tell me about HDFC Flexi Cap",

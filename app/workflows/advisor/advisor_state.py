@@ -11,6 +11,8 @@ from app.business.advisor.models.prompt import Prompt
 from app.business.approval.models.approval_context import ApprovalContext
 from app.business.portfolio.analysis.models import insight
 from app.business.portfolio.analysis.models.portfolio_analysis import PortfolioAnalysis
+from app.business.scheme.models.scheme_details import SchemeDetails
+from app.business.scheme.models.scheme_query import SchemeQuery
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.request_context import RequestContext
 from app.dtos.retrieval.llm_context import LLMContext
@@ -38,6 +40,9 @@ class AdvisorState:
 
     # Domain results
     portfolio_analysis: PortfolioAnalysis | None = None
+    
+    scheme_query: SchemeQuery | None = None
+    schemes: list[SchemeDetails] | None = None
 
     # memory
     #memory: MemoryContext | None = None 

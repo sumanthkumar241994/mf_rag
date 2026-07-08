@@ -3,7 +3,7 @@ from app.dtos.llm.llm_request import LLMRequest
 from app.llm_gateway.router import LLMRouter
 from app.llm_gateway.llm_gateway import LLMGateway
 from app.retrieval.context_builder import ContextBuilder
-from app.prompts.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
+from app.prompts.templates.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
 from app.api.dependencies.database import AsyncSessionLocal
 from app.repositories import DocumentChunkRepository
 from app.retrieval.retrieval_service import RetrievalService
