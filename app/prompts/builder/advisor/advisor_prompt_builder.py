@@ -1,5 +1,5 @@
 from app.business.advisor.enums.tool_type import ToolType
-from app.prompts.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
+from app.prompts.templates.advisor.system_prompt import ADVISOR_SYSTEM_PROMPT
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.business.advisor.models.prompt import Prompt
 

@@ -1,10 +1,10 @@
 from app.agents.advisor_agent import AdvisorAgent
 from app.composition.business.portfolio_composition import PortfolioComposition
+from app.composition.business.scheme_composition import SchemeComposition
 from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
 from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
 from app.composition.tool_composition import ToolComposition
-from app.prompts.advisor.prompt_builder import AdvisorPromptBuilder
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
@@ -24,6 +24,7 @@ class AdvisorComposition:
         self,
         portfolio: PortfolioComposition,
         planner: DeterministicPlannerComposition,
+        scheme: SchemeComposition,
         tools: ToolComposition,
         prompt: AdvisorPromptComposition,
         llm: LLMComposition
@@ -31,6 +32,11 @@ class AdvisorComposition:
         tools.registry.register(
             definition=portfolio.definition,
             tool=portfolio.tool
+        )
+
+        tools.registry.register(
+            definition=scheme.definition,
+            tool=scheme.tool
         )
 
         self.planner_node = PlannerNode(

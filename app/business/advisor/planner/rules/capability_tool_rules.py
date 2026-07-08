@@ -105,15 +105,15 @@ CAPABILITY_TOOL_RULES: dict[Capability, list[ToolType]] = {
     ],
 
     Capability.SCHEME: [
-        ToolType.DOCUMENT_SEARCH,
+        ToolType.SCHEME,
     ],
 
     Capability.FUND_COMPARISON: [
-        ToolType.DOCUMENT_SEARCH,
+        ToolType.SCHEME,
     ],
 
     Capability.NAV: [
-        ToolType.DOCUMENT_SEARCH,
+        ToolType.SCHEME,
     ],
 
     Capability.SID: [

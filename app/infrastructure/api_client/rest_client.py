@@ -111,7 +111,7 @@ class RestApiClient(BaseApiClient):
                 message="Unable to connect to remote service."
             ) from ex
         except httpx.HTTPError as ex:
-            raise HttpClientError(status_code=response.status_code, message=str(ex)) from ex
+            raise HttpClientError(status_code=503, message=str(ex)) from ex
         
         self._raise_for_status(response)
 

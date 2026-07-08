@@ -21,9 +21,12 @@
 from fastapi import Depends
 from app.agents.advisor_agent import AdvisorAgent
 from app.api.dependencies.portfolio import get_portfolio_gateway
+from app.api.dependencies.scheme import get_scheme_gateway
 from app.business.portfolio.gateways.portfolio_gateway import PortfolioGateway
+from app.business.scheme.gateways.scheme_gateway import SchemeGateway
 from app.composition.advisor_composition import AdvisorComposition
 from app.composition.business.portfolio_composition import PortfolioComposition
+from app.composition.business.scheme_composition import SchemeComposition
 from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
 from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
@@ -35,11 +38,13 @@ from app.orchestration.orchestrator import Orchestrator
 _advisor : AdvisorComposition | None = None
 
 def get_advisor_agent(
-    portfolio_gateway: PortfolioGateway = Depends(get_portfolio_gateway)
+    portfolio_gateway: PortfolioGateway = Depends(get_portfolio_gateway),
+    scheme_gateway: SchemeGateway = Depends(get_scheme_gateway)
 ) -> AdvisorAgent:
     global _advisor
     if _advisor is None:
         portfolio = PortfolioComposition(portfolio_gateway=portfolio_gateway)
+        scheme = SchemeComposition(scheme_gateway=scheme_gateway)
         planner = DeterministicPlannerComposition()
         tools = ToolComposition()
         prompt = AdvisorPromptComposition()
@@ -47,6 +52,7 @@ def get_advisor_agent(
 
         advisor = AdvisorComposition(
             portfolio=portfolio,
+            scheme=scheme,
             planner=planner,
             tools=tools,
             prompt=prompt,

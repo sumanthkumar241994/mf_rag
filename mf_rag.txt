@@ -7995,3 +7995,359 @@ The remaining work is less about redesigning the architecture and more about **a
 
 
 --------------------------
+
+
+You've now duplicated the same exception handling in PortfolioGateway and SchemeGateway. As you add Customer, Investment, Goal, and Market gateways, this will become repetitive.
+
+Once you have 3–4 gateways implemented, I'd refactor this into a common BaseGateway with a helper like:
+
+async def execute(self, operation: Callable[..., Awaitable[T]], ...) -> GatewayResult[T]:
+    ...
+
+That would eliminate ~80% of the duplicated exception handling while keeping each gateway focused only on the API endpoints and request construction. For now, though, I'd keep it as-is until the duplication becomes more apparent.
+
+-------------------------
+
+I think this is the architecture I'd freeze for V1:
+
+AdvisorState
+      │
+      ▼
+SchemeQueryParser
+      │
+      ▼
+SchemeQuery
+      │
+      ▼
+SchemeService
+      │
+      ▼
+FalconSearchRequest
+      │
+      ▼
+SchemeGateway
+      │
+      ▼
+SchemeSummary
+      │
+      ▼
+Details API
+      │
+      ▼
+SchemeDetails
+      │
+      ▼
+AdvisorState.schemes
+
+This gives you a clean separation of concerns:
+
+Planner decides which tool to invoke.
+SchemeQueryParser understands what the user is asking for in the context of schemes.
+SchemeService decides how to satisfy that request using one or more Falcon API calls.
+Gateway knows only about Falcon.
+
+I think this design will scale well when you add queries like "Compare my largest holding with the best ELSS fund" because the parser interface stays the same while its implementation becomes progressively smarter.
+
+------------------------
+
+Tokenizer
+        │
+ComparisonParser
+        │
+RecommendationParser
+        │
+LimitParser
+        │
+NormalizationParser
+        │
+CategoryParser
+        │
+SchemeTypeParser
+        │
+AMCParser
+        │
+RatingParser
+        │
+InvestmentOptionParser
+        │
+SchemeNameParser
+        │
+ConfidenceParser
+
+------------------
+
+
+SchemeTool
+        │
+        ▼
+SchemeQueryParser
+        │
+        ▼
+SchemeQuery
+        │
+        ▼
+SchemeService
+        │
+        ├───────────────┐
+        ▼               │
+ Search API             │
+        │               │
+        ▼               │
+ SchemeResolver ◄────────┘
+        │
+        ▼
+ Details API
+        │
+        ▼
+ SchemeMapper
+        │
+        ▼
+ list[SchemeDetails]
+        │
+        ▼
+ AdvisorState.schemes
+
+ ----------------------
+
+ Tool
+    │
+Service
+    │
+QueryParser (optional)
+    │
+Gateway(s)
+    │
+Resolver (optional)
+    │
+Calculator(s)
+    │
+Analyzer(s)
+    │
+State Mutation
+
+----------------------------
+
+Yes, but not always. From an enterprise architecture perspective, the Goal Tool should be designed to work independently and optionally leverage the Portfolio Tool when customer data is available.
+
+I would separate the responsibilities as follows.
+
+Goal Tool (Independent)
+
+The Goal Tool answers questions like:
+
+"I want ₹1 crore in 15 years."
+"How much SIP do I need?"
+"What return is required to achieve my goal?"
+"How much should I invest for my child's education?"
+
+These are purely financial calculations based on user inputs and assumptions. No portfolio is required.
+
+Inputs:
+
+Target amount
+Time horizon
+Current savings (optional)
+Expected return
+Inflation (optional)
+
+Output:
+
+Required SIP
+Required lump sum
+Future value
+Goal feasibility
+Portfolio Tool (Current State)
+
+The Portfolio Tool answers:
+
+What do I currently own?
+Am I diversified?
+What is my risk?
+How is my portfolio performing?
+
+It has no knowledge of future goals.
+
+Goal + Portfolio (Planning)
+
+This is where the two tools come together.
+
+Example:
+
+"I want ₹50 lakh for my daughter's education in 10 years. Am I on track?"
+
+The flow becomes:
+
+Planner
+    │
+    ├── Goal Tool
+    └── Portfolio Tool
+          │
+          ▼
+Planning
+
+The Goal Tool computes:
+
+Required SIP: ₹22,000/month
+
+The Portfolio Tool provides:
+
+Current portfolio value: ₹12 lakh
+Current SIP: ₹10,000/month
+Expected growth based on current investments
+
+The planner (or a future Planning Tool) compares these and concludes:
+
+Required SIP: ₹22,000/month
+Current SIP: ₹10,000/month
+Shortfall: ₹12,000/month
+User is not on track to meet the goal
+
+This comparison is not the responsibility of either the Goal Tool or the Portfolio Tool individually.
+
+Recommended Responsibility Split
+Goal Tool
+---------------------
+✔ Parse goal
+✔ Perform financial calculations
+✔ Estimate required SIP/lump sum
+✔ Assess feasibility based on inputs
+
+Portfolio Tool
+---------------------
+✔ Retrieve holdings
+✔ Analyze risk
+✔ Analyze diversification
+✔ Analyze performance
+
+Planning Tool (Future)
+---------------------
+✔ Combine Goal + Portfolio
+✔ Compare required vs. current investments
+✔ Forecast goal achievement
+✔ Generate action plan
+Why not make Goal depend on Portfolio?
+
+If the Goal Tool directly depends on the Portfolio Tool:
+
+It cannot answer questions from prospective customers who don't have a portfolio.
+It becomes tightly coupled to portfolio data.
+It is harder to test because every calculation requires portfolio context.
+It violates the single-responsibility principle.
+
+Keeping the Goal Tool independent makes it reusable and easier to maintain.
+
+Recommendation for your architecture
+
+Given your roadmap, I would not make the Goal Tool depend on the Portfolio Tool. Instead:
+
+Implement the Goal Tool as a standalone capability.
+Allow the planner to invoke both the Goal Tool and the Portfolio Tool when a query requires both.
+In a later phase, introduce a Planning Tool (or Financial Planning Service) that consumes state.goal_analysis and state.portfolio_analysis to determine whether the customer is on track and recommend adjustments.
+
+This layered approach keeps each tool focused on a single responsibility while enabling richer planning workflows through orchestration rather than direct dependencies.
+
+-------------------------
+
+
+Option 1: Use customer profile (best experience)
+
+If your platform stores customer information, use it first.
+
+For example:
+
+Customer Profile
+
+Risk Profile: Moderate
+
+Existing SIP: ₹15,000/month
+
+Current Portfolio: ₹8 lakh
+
+Age: 32
+
+The Goal Tool can use a default expected return based on the customer's risk profile (or a configurable planning assumption), while the portfolio provides the current invested amount.
+
+The calculation becomes:
+
+Target Amount
+
+↓
+
+Current Corpus (Portfolio)
+
+↓
+
+Time Horizon
+
+↓
+
+Expected Return (Risk Profile)
+
+↓
+
+Required SIP
+
+This produces a personalized estimate.
+
+Option 2: Use reasonable defaults
+
+If the user is anonymous or you don't have profile data, use configurable planning assumptions.
+
+For example:
+
+DEFAULT_EXPECTED_RETURN = 12%
+DEFAULT_INFLATION = 6%
+
+The advisor can respond:
+
+Assuming an annual return of 12%, you would need to invest approximately ₹X per month to accumulate ₹1 crore in 15 years. If your expected return differs, the required investment will change.
+
+This avoids unnecessary back-and-forth for a common planning scenario.
+
+Option 3: Ask a follow-up question
+
+If you prefer not to assume values, the advisor should ask for the missing information.
+
+For example:
+
+I can calculate that for you. Do you already have any money invested toward this goal? Also, what annual return would you like to assume, or should I use a standard planning assumption?
+
+This is the most accurate approach but adds an extra conversational step.
+
+What should the Goal Tool do?
+
+The Goal Tool itself should not decide whether to use defaults or ask follow-up questions. Its responsibility is to perform calculations with complete inputs.
+
+For example:
+
+GoalInput(
+    target_amount=10000000,
+    years=15,
+    current_corpus=200000,
+    expected_return=0.12,
+    inflation=0.06
+)
+
+If required inputs are missing, it should indicate that rather than invent values.
+
+Where should missing data be handled?
+
+The decision belongs in the planner or orchestration layer.
+
+User Query
+      │
+      ▼
+Planner
+      │
+      ├── Has enough information?
+      │
+      ├── Yes → Goal Tool
+      │
+      └── No
+            │
+            ├── Use profile data
+            ├── Use configured defaults
+            └── Ask follow-up question
+
+
+---------------------

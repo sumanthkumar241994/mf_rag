@@ -1,7 +1,7 @@
 from typing import AsyncIterator
 from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.stream_event_type import StreamEventType
-from app.prompts.advisor.prompt_builder import AdvisorPromptBuilder
+from app.prompts.builder.advisor.advisor_prompt_builder import AdvisorPromptBuilder
 from app.workflows.advisor.advisor_state import AdvisorState
 
 
