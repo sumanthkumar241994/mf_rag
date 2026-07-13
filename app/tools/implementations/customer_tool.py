@@ -9,9 +9,15 @@ class CustomerTool(BaseTool):
     def __init__(self, customer_service: CustomerService):
         self._customer_service = customer_service
     
+    # async def execute(self, request: ToolRequest) -> ToolResponse:
+    #     await self._customer_service.retrieve(request.state)
+
+    #     return ToolResponse(
+    #         success=request.state.customer is not None
+    #     )
     async def execute(self, request: ToolRequest) -> ToolResponse:
-        await self._customer_service.retrieve(request.state)
+        execution = await self._customer_service.retrieve(request.state)
 
         return ToolResponse(
-            success=request.state.customer is not None
+            success= execution.result is not None
         )

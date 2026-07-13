@@ -20,15 +20,18 @@ from app.business.scheme.parsers.scheme_query_parser import SchemeQueryParser
 from app.business.scheme.parsers.scheme_type_parser import SchemeTypeParser
 from app.business.scheme.scheme_resolver import SchemeResolver
 from app.business.scheme.scheme_service import SchemeService
+from app.composition.workflow_composition import WorkflowComposition
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.scheme_tool import SchemeTool
+from app.workflows.workflow.service.workflow_service import WorkflowService
 
 
 class SchemeComposition:
 
     def __init__(
         self,
-        scheme_gateway:SchemeGateway
+        scheme_gateway:SchemeGateway,
+        workflow_service: WorkflowService
     ):
 
         self.lookup_provider = StaticLookupProvider()
@@ -71,7 +74,8 @@ class SchemeComposition:
             scheme_gateway=scheme_gateway,
             scheme_mapper=self.mapper,
             scheme_query_parser=self.query_parser,
-            scheme_resolver=self.resolver
+            scheme_resolver=self.resolver,
+            workflow_service=workflow_service
         )
 
         self.definition = ToolDefinition(

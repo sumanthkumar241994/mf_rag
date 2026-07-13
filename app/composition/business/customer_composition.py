@@ -4,8 +4,10 @@ from app.business.advisor.enums.tool_type import ToolType
 from app.business.customer.customer_service import CustomerService
 from app.business.customer.gateway.cached_customer_gateway import CachedCustomerGateway
 from app.business.customer.mapper.customer_mapper import CustomerMapper
+from app.composition.workflow_composition import WorkflowComposition
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.customer_tool import CustomerTool
+from app.workflows.workflow.service.workflow_service import WorkflowService
 
 
 class CustomerComposition:
@@ -13,12 +15,14 @@ class CustomerComposition:
     def __init__(
         self,
         customer_gateway: CachedCustomerGateway,
+        workflow_service: WorkflowService
     ):
         self.customer_mapper = CustomerMapper()
 
         self.customer_service = CustomerService(
             customer_gateway=customer_gateway,
             customer_mapper=self.customer_mapper,
+            workflow_service=workflow_service
         )
 
         self.definition = ToolDefinition(

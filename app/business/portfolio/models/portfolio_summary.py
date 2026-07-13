@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from decimal import Decimal
+from random import randint
 
 
 @dataclass(slots=True)
@@ -18,3 +19,4 @@ class PortfolioSummary:
     highest_risk_category: str | None
     highest_exposure_amc: str | None
     highest_exposure_amc_percentage: Decimal
+    monthly_sip: Decimal = Decimal(randint(1,10)*10000)

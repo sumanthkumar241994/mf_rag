@@ -8400,3 +8400,87 @@ Planner
                             │
                             ▼
                     state.goal_analysis
+
+----------------------------
+
+                         GoalService
+                              │
+                              ▼
+                 CustomerContextProvider
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+    CustomerCache      PortfolioCache   CustomerContextBuilder
+          │                   │
+      Cache Miss         Cache Miss
+          │                   │
+          ▼                   ▼
+   CustomerGateway     PortfolioGateway
+          │                   │
+          └───────────┬───────┘
+                      ▼
+                  Update Cache
+
+
+-------------------------
+
+                    get(customer_id)
+                           │
+          ┌────────────────┴───────────────┐
+          │                                │
+          ▼                                ▼
+CustomerCache.get()             PortfolioCache.get()
+          │                                │
+          └──────────────┬─────────────────┘
+                         │
+               Anything missing?
+                         │
+                No ─────────────► Builder
+                         │
+                        Yes
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+CustomerGateway.get()         PortfolioGateway.get()
+          │                             │
+          └──────────────┬──────────────┘
+                         │
+                 Parallel cache writes
+                         │
+                         ▼
+                     Builder
+                         │
+                         ▼
+                 CustomerContext
+
+
+--------------------------
+
+User Query
+      │
+      ▼
+Goal Parser
+      │
+      ▼
+GoalParameters (partial)
+      │
+      ▼
+ParameterResolver
+      │
+      ▼
+GoalParameters (complete)
+      │
+      ▼
+GoalCalculator
+      │
+      ▼
+GoalProjection
+      │
+      ▼
+GoalAnalyzer
+      │
+      ▼
+GoalAnalysis
+
+------------

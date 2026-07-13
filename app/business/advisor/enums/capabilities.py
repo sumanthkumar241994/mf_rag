@@ -34,7 +34,7 @@ class Capability(StrEnum):
     # Goal Planning
     GOAL = "goal"
     RETIREMENT = "retirement"
-    CHILD_EDUCATION = "child_education"
+    CHILD_EDUCATION = "education"
     WEALTH_CREATION = "wealth_creation"
     EMERGENCY_FUND = "emergency_fund"
 

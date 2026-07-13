@@ -30,18 +30,20 @@ class Orchestrator:
                                 workflow='advisor'
                             )
 
-            await self.conversation_service.save_message(
-                conversation=conversation,
-                role=MessageRole.USER.value,
-                content=request.query
-            )
+            if request.query:
+                await self.conversation_service.save_message(
+                    conversation=conversation,
+                    role=MessageRole.USER.value,
+                    content=request.query or request.workflow_resume
+                )
 
-            history = await self.conversation_service.get_recent_context(conversation.id)
-
-            request.conversation_id = conversation.id
             trace_id = LangfuseHelper.get_trace_id()
 
+            request.conversation_id = conversation.id
+
             trace_id_ctx.set(trace_id)
+
+            history = await self.conversation_service.get_recent_context(conversation.id)
 
             state = AdvisorState(
                 request=request, 
@@ -49,14 +51,18 @@ class Orchestrator:
                 trace_id=LangfuseHelper.get_trace_id(),
             )
 
-            response = await self.agent.run(state)
+            if request.workflow_resume:
+                response = await self.agent.resume(state)
+            else:
+                response = await self.agent.run(state)
 
-            await self.conversation_service.save_message(
-                conversation=conversation,
-                role=MessageRole.ASSISTANT.value,
-                content=response.answer,
-                metadata=response.metadata
-            )
+            if response.answer:
+                await self.conversation_service.save_message(
+                    conversation=conversation,
+                    role=MessageRole.ASSISTANT.value,
+                    content=response.answer,
+                    metadata=response.metadata
+                )
             response.response_time_ms = round((time.perf_counter()-start_time) *1000)
             
         return response
@@ -77,7 +83,7 @@ class Orchestrator:
 
             history = await self.conversation_service.get_recent_context(conversation.id)
 
-            trace_id = LangfuseHelper.get_trace_id()
+            trace_id = conversation.trace_id if request.workflow_resume else LangfuseHelper.get_trace_id()
 
             state = AdvisorState(
                 request=request,
@@ -94,7 +100,12 @@ class Orchestrator:
                 )
             stream_response = None 
 
-            async for event in self.agent.stream(state):
+            if request.workflow_resume:
+                stream = self.agent.resume_stream(state)
+            else:
+                stream = self.agent.stream(state)
+
+            async for event in stream:
                 yield event
 
                 if event.type == StreamEventType.COMPLETED.value:

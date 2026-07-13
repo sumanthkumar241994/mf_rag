@@ -4,6 +4,7 @@ from uuid import UUID
 
 @dataclass(slots=True)
 class RequestContext:
-    query: str
+    query: str | None = None
     customer_id: str | None = None
     conversation_id: UUID | None = None
+    workflow_resume: str | None = None

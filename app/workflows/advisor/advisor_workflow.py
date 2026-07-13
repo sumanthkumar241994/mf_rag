@@ -63,15 +63,23 @@
 
 
 from typing import AsyncIterator
+from httpx import request
 from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
 from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.workflow_decision import WorkflowDecision
+from app.mapper.advisor_state_mapper import AdvisorStateMapper
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
 from app.workflows.advisor.nodes.prompt_builder_node import PromptBuilderNode
 from app.workflows.advisor.nodes.tool_execution_node import ToolExecutionNode
 from app.workflows.advisor.nodes.tool_failure_node import ToolFailureNode
+from app.workflows.workflow.node.workflow_node import WorkflowNode
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from app.workflows.workflow_config import WorkflowConfig
 
 
 
@@ -81,15 +89,19 @@ class AdvisorWorkflow:
         self,
         planner_node: PlannerNode,
         tool_exectution_node: ToolExecutionNode,
+        workflow_node: WorkflowNode,
         tool_failure_node: ToolFailureNode,
         prompt_builder_node: PromptBuilderNode,
-        llm_node: LLMNode
+        llm_node: LLMNode,
+        checkpointer: AsyncPostgresSaver
     ):
         self._planner_node = planner_node
         self._tool_execution_node = tool_exectution_node
+        self._workflow_node = workflow_node
         self._tool_failure_node = tool_failure_node
         self._prompt_builder_node = prompt_builder_node
         self._llm_node = llm_node
+        self._checkpointer = checkpointer
         self._graph = self._build_graph()
 
     
@@ -99,6 +111,7 @@ class AdvisorWorkflow:
 
         workflow.add_node("planner", self._planner_node)
         workflow.add_node("tool_execution", self._tool_execution_node)
+        workflow.add_node("workflow", self._workflow_node)
         workflow.add_node("prompt_builder", self._prompt_builder_node)
         workflow.add_node("tool_failure", self._tool_failure_node)
         workflow.add_node("llm", self._llm_node)
@@ -109,15 +122,18 @@ class AdvisorWorkflow:
             "tool_execution", 
             self._route_after_tool_execution,
             {
-                WorkflowDecision.CONTINUE.value: "prompt_builder",
+                WorkflowDecision.CONTINUE.value: "workflow",
                 WorkflowDecision.TOOL_FAILURE.value: "tool_failure"
             }
         )
+        workflow.add_edge("workflow", "prompt_builder")
         workflow.add_edge("prompt_builder", "llm")
         workflow.add_edge("llm", END)
         workflow.add_edge("tool_failure", END)
 
-        return workflow.compile()
+        return workflow.compile(
+            checkpointer=self._checkpointer
+        )
 
     def _route_after_tool_execution(
         self,
@@ -138,31 +154,96 @@ class AdvisorWorkflow:
 
 
     async def invoke(self, state: AdvisorState) -> AdvisorState:
-        result = await self._graph.ainvoke(state)
+        print(WorkflowConfig.config(state))
+
+        result = await self._graph.ainvoke(
+            state,
+            config=WorkflowConfig.config(state)
+        )
         print(result)
         if isinstance(result, dict):
-            return AdvisorState(**result)
+            result = {
+                key: value
+                for key, value in result.items()
+                if not key.startswith("__")
+            }
+            return AdvisorStateMapper.from_dict(result)
+
+        return result
+        
+
+    async def resume(
+        self,
+        state: AdvisorState,
+        answer: str,
+    ) -> AdvisorState:
+
+        config = WorkflowConfig.config(state)
+
+        snapshot = await self._graph.aget_state(config)
+
+        # Workflow already completed
+        if snapshot.next == ():
+            restored = AdvisorStateMapper.from_dict(snapshot.values)
+
+            # If we already have an answer, simply return it.
+            if restored.llm_response is not None:
+                return restored
+
+            # Otherwise there is nothing to resume.
+            return restored
+
+        result = await self._graph.ainvoke(
+            Command(resume=answer),
+            config=config,
+        )
+
+        if isinstance(result, dict):
+            return AdvisorStateMapper.from_dict(result)
 
         return result
 
 
+    # async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+
+    #     async for event in self._planner_node.stream(state):
+    #         yield event
+        
+    #     async for event in self._tool_execution_node.stream(state):
+    #         yield event
+
+    #     if self._route_after_tool_execution(state) == WorkflowDecision.TOOL_FAILURE.value:
+    #         async for event in self._tool_failure_node.stream(state):
+    #             yield event
+            
+    #         return
+
+    #     # workflow (Goal Interrupt today)
+    #     await self._workflow_node(state)
+
+    #     async for event in self._prompt_builder_node.stream(state):
+    #         yield event
+        
+
+    #     async for event in self._llm_node.stream(state):
+    #         yield event
+
     async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
 
-        async for event in self._planner_node.stream(state):
-            yield event
-        
-        async for event in self._tool_execution_node.stream(state):
-            yield event
+        async for event in self._graph.astream_events(
+            state,
+            config=WorkflowConfig.config(state),
+            version="v2",
+        ):
+            yield await self._handle_graph_event(event)
 
-        if self._route_after_tool_execution(state) == WorkflowDecision.TOOL_FAILURE.value:
-            async for event in self._tool_failure_node.stream(state):
-                yield event
-            
-            return
+    async def resume_stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
 
-        async for event in self._prompt_builder_node.stream(state):
-            yield event
-        
-
-        async for event in self._llm_node.stream(state):
-            yield event
+        async for event in self._graph.astream_events(
+            Command(
+                resume=state.request.workflow_resume,
+            ),
+            config=WorkflowConfig.config(state),
+            version="v2",
+        ):
+            yield await self._handle_graph_event(event)

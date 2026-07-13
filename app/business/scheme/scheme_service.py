@@ -1,5 +1,7 @@
+from app.business.advisor.enums.capabilities import Capability
 from app.business.advisor.models.advisor_error import AdvisorError
 from app.business.common.models.gateway_result import GatewayResult
+from app.business.common.services.base_workflow_service import BaseWorkflowService
 from app.business.scheme.gateways.scheme_gateway import SchemeGateway
 from app.business.scheme.mappers.scheme_mapper import SchemeMapper
 from app.business.scheme.models import scheme_query
@@ -10,25 +12,31 @@ from app.business.scheme.parsers.scheme_query_parser import SchemeQueryParser
 from app.business.scheme.scheme_resolver import SchemeResolver
 from app.infrastructure.api_client.models import GateWayRequestContext
 from app.workflows.advisor.advisor_state import AdvisorState
+from app.workflows.workflow.models.workflow_execution import WorkflowExecution
+from app.workflows.workflow.service.workflow_service import WorkflowService
 
 
-class SchemeService:
+class SchemeService(BaseWorkflowService[SchemeDetails]):
     def __init__(
         self,
         scheme_gateway: SchemeGateway,
         scheme_mapper: SchemeMapper,
         scheme_query_parser: SchemeQueryParser,
         scheme_resolver: SchemeResolver,
+        workflow_service: WorkflowService
     ):
+        super().__init__(workflow_service)
+
         self._scheme_gateway = scheme_gateway
         self._scheme_mapper = scheme_mapper
         self._scheme_query_parser = scheme_query_parser
         self._scheme_resolver = scheme_resolver
+        self._workflow_service = workflow_service
 
     async def execute(
         self,
         state: AdvisorState,
-    ):
+    ) -> WorkflowExecution[SchemeDetails]:
         """
         Retrieves scheme information and enriches AdvisorState.
         """
@@ -57,8 +65,20 @@ class SchemeService:
         if schemes is None:
             return
 
+        execution = self._create_workflow_execution(
+            state=state,
+            capability=Capability.INVESTMENT,
+            result=schemes,
+            complete=True
+        )
+
+        if schemes is None:
+            return execution
+
+        state.workflow_execution = execution
         state.schemes = schemes
 
+        return execution
     # ------------------------------------------------------------------ #
 
     def _parse_query(

@@ -9,9 +9,16 @@ class SchemeTool(BaseTool):
     def __init__(self, scheme_service: SchemeService):
         self._scheme_service = scheme_service
     
+    # async def execute(self, request: ToolRequest) -> ToolResponse:
+    #     await self._scheme_service.execute(request.state)
+
+    #     return ToolResponse(
+    #         success=request.state.schemes is not None
+    #     )
+    
     async def execute(self, request: ToolRequest) -> ToolResponse:
-        await self._scheme_service.execute(request.state)
+        execution = await self._scheme_service.execute(request.state)
 
         return ToolResponse(
-            success=request.state.schemes is not None
+            success= execution.result is not None
         )
