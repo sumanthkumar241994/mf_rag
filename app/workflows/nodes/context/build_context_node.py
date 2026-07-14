@@ -1,8 +1,8 @@
 # app/workflows/nodes/build_context_node.py
 
+from app.business.document.models.retrieval_response import SourceResponse
+from app.business.document.services.context_builder import ContextBuilder
 from app.workflows.advisor.advisor_state import AdvisorState
-from app.retrieval.context_builder import ContextBuilder
-from app.schemas.responses.advisor import SourceResponse
 from app.observability.tracing import trace_step
 
 class BuildContextNode:

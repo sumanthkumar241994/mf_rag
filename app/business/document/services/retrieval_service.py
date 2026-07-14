@@ -1,6 +1,6 @@
+from app.business.document.models.retrieved_chunk import RetrievedChunk
 from app.models import document
 from app.repositories import DocumentRepository, DocumentChunkRepository
-from app.schemas.responses.retrieval import RetrievedChunk
 from app.llm_gateway.embeddings.bedrock_embedding_client import BedrockEmbeddingClient
 
 from app.observability.tracing import trace_step

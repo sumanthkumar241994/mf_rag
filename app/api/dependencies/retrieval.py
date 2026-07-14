@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from app.api.dependencies.database import get_db
+from app.business.document.services.context_builder import ContextBuilder
+from app.business.document.services.retrieval_service import RetrievalService
 from app.repositories import DocumentChunkRepository
-from app.retrieval.retrieval_service import RetrievalService
-from app.retrieval.context_builder import ContextBuilder
 from app.llm_gateway.embeddings.bedrock_embedding_client import  BedrockEmbeddingClient
 from app.core.config.aws import AWS
 

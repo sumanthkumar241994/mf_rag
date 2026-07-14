@@ -86,6 +86,7 @@
 
 
 from app.business.advisor.models.prompt import Prompt
+from app.prompts.builder.advisor.sections.document_section import DocumentSection
 from app.prompts.builder.advisor.sections.customer_section import CustomerSection
 from app.prompts.builder.advisor.sections.goal_section import GoalSection
 from app.prompts.builder.advisor.sections.portfolio_section import PortfolioSection
@@ -104,12 +105,14 @@ class AdvisorPromptBuilder:
         customer_section: CustomerSection,
         portfolio_section: PortfolioSection,
         scheme_section: SchemeSection,
-        goal_section: GoalSection
+        goal_section: GoalSection,
+        document_section: DocumentSection
     ):
         self._customer_section = customer_section
         self._portfolio_section = portfolio_section
         self._scheme_section = scheme_section
         self._goal_section = goal_section
+        self._document_section = document_section
 
     def build(self, state: AdvisorState) -> Prompt:
 
@@ -119,7 +122,8 @@ class AdvisorPromptBuilder:
             self._customer_section,
             self._portfolio_section,
             self._scheme_section,
-            self._goal_section
+            self._goal_section,
+            self._document_section
         ):
             sections.extend(section.build(state))
 

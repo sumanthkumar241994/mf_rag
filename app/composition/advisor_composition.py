@@ -2,6 +2,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from app.agents.advisor_agent import AdvisorAgent
 from app.business.advisor.enums.capabilities import Capability
 from app.composition.business.customer_composition import CustomerComposition
+from app.composition.business.document_composition import DocumentComposition
 from app.composition.business.goal_composition import GoalComposition
 from app.composition.business.portfolio_composition import PortfolioComposition
 from app.composition.business.scheme_composition import SchemeComposition
@@ -33,6 +34,7 @@ class AdvisorComposition:
         scheme: SchemeComposition,
         customer: CustomerComposition,
         goal: GoalComposition,
+        document: DocumentComposition,
         tools: ToolComposition,
         prompt: AdvisorPromptComposition,
         llm: LLMComposition,
@@ -59,6 +61,11 @@ class AdvisorComposition:
             tool=goal.tool
         )
 
+        tools.registry.register(
+            definition=document.definition,
+            tool=document.tool
+        )
+        
         workflow.workflow_service.register(
             Capability.GOAL,
             goal.workflow_handler

@@ -1,7 +1,7 @@
 from typing import Any
 from dataclasses import dataclass, field
 from uuid import UUID
-from app.schemas.responses.advisor import SourceResponse
+from app.business.document.models.retrieval_response import SourceResponse
 from app.workflows.workflow.models.workflow_interrupt import WorkflowInterrupt
 
 @dataclass(slots=True)
@@ -14,7 +14,6 @@ class AgentResponse:
     response_time_ms: int | None = None
     sources: list[SourceResponse] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-
    
 
     @property
