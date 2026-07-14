@@ -8917,3 +8917,425 @@ events.
 
 That is the one component I'd design carefully before writing any code, because once it's correct, the rest of the migration becomes mostly mechanical. It's also the point where your manual streaming implementation is completely replaced by LangGraph's native event system.
 
+
+-----------------------
+
+                    AdvisorWorkflow
+                           │
+                     graph.add_node()
+                           │
+                           ▼
+                    LLMRunnable
+                    ┌─────────────┐
+                    │ ainvoke()   │
+                    │             │
+                    │ astream()   │
+                    └──────┬──────┘
+                           │
+                    ┌──────┴──────┐
+                    │             │
+             Gateway.generate()  Gateway.astream()
+
+
+----------------------
+
+
+I think we've now converged on a solid long-term architecture. I would do this in **small, verifiable steps**, so that after each step the application still runs.
+
+---
+
+# Phase 1 — Replace LLMNode with Runnable
+
+### Step 1
+
+Create
+
+```text
+app/infrastructure/llm/
+    gateway_chat_runnable.py
+```
+
+Initially:
+
+```python
+class GatewayChatRunnable(
+    RunnableSerializable[AdvisorState, AdvisorState]
+):
+    ...
+```
+
+No implementation.
+
+Verify it imports correctly.
+
+---
+
+### Step 2
+
+Move
+
+```text
+LLMNode._build_request()
+```
+
+into
+
+```text
+GatewayChatRunnable
+```
+
+so the runnable owns
+
+```
+AdvisorState
+↓
+
+LLMRequest
+```
+
+No gateway call yet.
+
+---
+
+### Step 3
+
+Implement
+
+```python
+ainvoke()
+```
+
+Flow
+
+```
+AdvisorState
+      │
+build_request()
+      │
+Gateway.generate()
+      │
+state.llm_response
+      │
+return state
+```
+
+At this point
+
+```
+graph.ainvoke()
+```
+
+should still work.
+
+---
+
+### Step 4
+
+Register it
+
+Replace
+
+```python
+workflow.add_node(
+    "llm",
+    self._llm_node,
+)
+```
+
+with
+
+```python
+workflow.add_node(
+    "llm",
+    self._gateway_chat_runnable,
+)
+```
+
+Nothing else changes.
+
+---
+
+### Step 5
+
+Delete
+
+```
+LLMNode.__call__()
+```
+
+Leave only
+
+```
+GatewayChatRunnable
+```
+
+---
+
+# Phase 2 — Native Streaming
+
+This is where the interesting work starts.
+
+---
+
+### Step 6
+
+Implement
+
+```python
+astream()
+```
+
+using
+
+```python
+gateway.astream()
+```
+
+Initially just yield chunks.
+
+Don't worry about LangGraph events yet.
+
+---
+
+### Step 7
+
+Run
+
+```python
+graph.astream_events(...)
+```
+
+Print every event.
+
+Understand what LangGraph emits.
+
+---
+
+### Step 8
+
+Map
+
+```
+LLMChunk
+```
+
+↓
+
+```
+Runnable Stream
+```
+
+↓
+
+```
+LangGraph Event
+```
+
+↓
+
+```
+AgentStreamEvent
+```
+
+This replaces your current
+
+```
+LLMNode.stream()
+```
+
+---
+
+### Step 9
+
+Delete
+
+```
+LLMNode.stream()
+```
+
+---
+
+# Phase 3 — Workflow Cleanup
+
+Now all node streaming disappears.
+
+Delete
+
+```
+PlannerNode.stream()
+```
+
+Delete
+
+```
+ToolExecutionNode.stream()
+```
+
+Delete
+
+```
+PromptBuilderNode.stream()
+```
+
+Delete
+
+```
+ToolFailureNode.stream()
+```
+
+Delete
+
+```
+WorkflowNode.stream()
+```
+
+Only
+
+```
+AdvisorWorkflow.stream()
+```
+
+remains.
+
+---
+
+### Step 10
+
+Workflow becomes
+
+```
+graph.astream_events()
+
+↓
+
+_handle_event()
+
+↓
+
+AgentStreamEvent
+```
+
+No manual orchestration.
+
+---
+
+# Phase 4 — Reflection
+
+Now adding reflection is trivial.
+
+```
+Planner
+
+↓
+
+Tools
+
+↓
+
+Prompt
+
+↓
+
+LLM
+
+↓
+
+Reflection
+
+↓
+
+Good?
+```
+
+```
+Yes
+```
+
+↓
+
+```
+END
+```
+
+```
+No
+```
+
+↓
+
+```
+Prompt Builder
+
+↓
+
+LLM
+```
+
+Nothing changes in the Gateway.
+
+Nothing changes in the Provider.
+
+---
+
+# Phase 5 — Multi-Agent
+
+Later
+
+```
+Advisor Agent
+
+Research Agent
+
+Tax Agent
+```
+
+all use
+
+```
+GatewayChatRunnable
+
+↓
+
+Gateway
+
+↓
+
+Provider
+```
+
+---
+
+# Final architecture
+
+```
+                StateGraph
+                     │
+      ┌──────────────┼──────────────┐
+      ▼              ▼              ▼
+ Planner         Tool Nodes     Prompt Builder
+                                         │
+                                         ▼
+                              GatewayChatRunnable
+                                         │
+                                         ▼
+                                 Enterprise Gateway
+                                         │
+                                         ▼
+                                     Provider
+```
+
+---
+
+## One recommendation before you start
+
+I would **not delete `LLMNode` immediately**. Instead:
+
+1. Create `GatewayChatRunnable`.
+2. Get `graph.ainvoke()` working with it.
+3. Only after that, remove `LLMNode`.
+
+That gives you a straightforward rollback path if anything unexpected comes up, and once the runnable is stable, the rest of the migration (native streaming, reflection, and future multi-agent support) becomes much easier.
+
+-----------
+
+

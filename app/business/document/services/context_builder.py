@@ -1,6 +1,7 @@
 from collections import OrderedDict
-from app.schemas.responses.retrieval import RetrievedChunk
-from app.dtos.retrieval.llm_context import LLMContext
+
+from app.business.document.models.llm_context import LLMContext
+from app.business.document.models.retrieved_chunk import RetrievedChunk
 
 class ContextBuilder:
     """

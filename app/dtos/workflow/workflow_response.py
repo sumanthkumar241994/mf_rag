@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.business.document.models.retrieval_response import SourceResponse
 from app.dtos.llm.llm_metrics import LLMMetrics
 from app.dtos.llm.llm_usage import LLMUsage
-from app.schemas.responses.advisor import SourceResponse
 
 @dataclass(slots=True)
 class WorkflowResponse:

@@ -10,6 +10,8 @@ from app.business.advisor.models.planner_result import PlannerResult
 from app.business.advisor.models.prompt import Prompt
 from app.business.approval.models.approval_context import ApprovalContext
 from app.business.customer.models.customer import Customer
+from app.business.document.models.llm_context import LLMContext
+from app.business.document.models.retrieval_response import SourceResponse
 from app.business.goal.mapper.goal_mapper import GoalMapper
 from app.business.goal.models.goal_analysis import GoalAnalysis
 from app.business.portfolio.analysis.models import insight
@@ -18,12 +20,10 @@ from app.business.scheme.models.scheme_details import SchemeDetails
 from app.business.scheme.models.scheme_query import SchemeQuery
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.request_context import RequestContext
-from app.dtos.retrieval.llm_context import LLMContext
 from app.dtos.workflow.tool_execution_result import ToolExecutionResult
 from app.mapper.planner_result_mapper import PlannerResultMapper
 from app.mapper.workflow_execution_mapper import WorkflowExecutionMapper
 from app.schemas.conversation.cache_message import CacheMessage
-from app.schemas.responses.advisor import SourceResponse
 from app.workflows.workflow.models.workflow_execution import WorkflowExecution
 from app.workflows.workflow.models.workflow_interrupt import WorkflowInterrupt
 

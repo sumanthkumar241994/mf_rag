@@ -3,10 +3,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.business.document.models.chunk_search_result import ChunkSearchResult
 from app.models import Document, DocumentChunk, DocumentVersion, VersionChunkMapping
 from app.repositories.base_repository import BaseRepository
 
-from app.dtos.retrieval.chunk_search_result import ChunkSearchResult
 
 
 class DocumentChunkRepository(BaseRepository):
