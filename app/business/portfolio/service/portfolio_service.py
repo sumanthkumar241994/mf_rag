@@ -46,11 +46,14 @@ class PortfolioService(BaseWorkflowService[PortfolioAnalysis]):
         result : GatewayResult[Portfolio] = await self._portfolio_gateway.get_portfolio(context=gateway_context)
 
         if not result.success:
+            state.workflow_execution = None
             state.add_error(
                 AdvisorError.from_gateway(error=result.error, source='portfolio_gateway')
             )
-            return
 
+            return None
+
+            
         portfolio = self._portfolio_mapper.from_falcon_response(result.data)
         portfolio_analysis = self._portfolio_analyzer.analyze(portfolio)
 

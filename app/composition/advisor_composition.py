@@ -77,7 +77,7 @@ class AdvisorComposition:
         )
 
         self.llm_node = LLMNode(
-            llm_gateway=llm.gateway
+            gateway=llm.gateway
         )
 
         self.workflow_node = WorkflowNode(workflow.workflow_service)

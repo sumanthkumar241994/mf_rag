@@ -20,5 +20,5 @@ class SchemeTool(BaseTool):
         execution = await self._scheme_service.execute(request.state)
 
         return ToolResponse(
-            success= execution.result is not None
+            success=execution is not None and execution.result is not None
         )

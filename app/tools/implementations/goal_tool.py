@@ -17,5 +17,5 @@ class GoalTool(BaseTool):
         execution = await self._goal_service.analyze(request.state)
 
         return ToolResponse(
-            success= execution.result is not None
+            success=execution is not None and execution.result is not None
         )

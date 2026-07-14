@@ -45,13 +45,15 @@ class CustomerService(BaseWorkflowService[Customer]):
         )
 
         if not result.success:
+            state.workflow_execution = None
             state.add_error(
                 AdvisorError.from_gateway(
                     error=result.error,
                     source="customer_gateway",
                 )
             )
-            return
+            return None
+            
 
         customer: Customer = self._customer_mapper.map(result.data)
 

@@ -62,11 +62,12 @@
 #         return state
 
 
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 from httpx import request
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 from app.dtos.agents.stream_event import AgentStreamEvent
+from app.enums.stream_event_type import StreamEventType
 from app.enums.workflow_decision import WorkflowDecision
 from app.mapper.advisor_state_mapper import AdvisorStateMapper
 from app.workflows.advisor.advisor_state import AdvisorState
@@ -170,7 +171,7 @@ class AdvisorWorkflow:
             return AdvisorStateMapper.from_dict(result)
 
         return result
-        
+
 
     async def resume(
         self,
@@ -203,6 +204,119 @@ class AdvisorWorkflow:
 
         return result
 
+    # async def stream(
+    #     self,
+    #     state: AdvisorState,
+    # ) -> AsyncIterator[AgentStreamEvent]:
+
+    #     async for event in self._graph.astream_events(
+    #         state,
+    #         config=WorkflowConfig.config(state),
+    #         version="v2",
+    #     ):
+
+    #         stream_event = await self._handle_graph_event(
+    #             state=state,
+    #             event=event,
+    #         )
+
+    #         if stream_event is not None:
+    #             yield stream_event
+
+
+    async def stream(
+        self,
+        state: AdvisorState,
+    ) -> AsyncIterator[AgentStreamEvent]:
+
+        async for mode, chunk in self._graph.astream(
+            state,
+            config=WorkflowConfig.config(state),
+            stream_mode=["updates", "custom"],
+        ):
+
+            # print("=" * 80)
+            # print(mode)
+            # print(chunk)
+            # print("=" * 80)
+
+            # if False:
+            #     yield 
+            # ----------------------------------------------------
+            # Custom stream emitted from LLMNode
+            # ----------------------------------------------------
+            if mode == "custom":
+
+                event = self._handle_custom_stream(
+                    state=state,
+                    chunk=chunk,
+                )
+
+                if event is not None:
+                    yield event
+
+                continue
+
+            # ----------------------------------------------------
+            # LangGraph state updates
+            # ----------------------------------------------------
+            if mode == "updates":
+
+                async for event in self._handle_update_stream(
+                    state=state,
+                    chunk=chunk,
+                ):
+                    yield event
+
+            
+
+    async def resume_stream(
+    self,
+    state: AdvisorState,
+    ) -> AsyncIterator[AgentStreamEvent]:
+
+        async for mode, chunk in self._graph.astream(
+            Command(
+                resume=state.request.workflow_resume,
+            ),
+            config=WorkflowConfig.config(state),
+            stream_mode=["updates", "custom"],
+        ):
+
+            if mode == "custom":
+
+                event = self._handle_custom_stream(
+                    state=state,
+                    chunk=chunk,
+                )
+
+                if event is not None:
+                    yield event
+
+                continue
+
+            if mode == "updates":
+
+                async for event in self._handle_update_stream(
+                    state=state,
+                    chunk=chunk,
+                ):
+                    yield event
+
+    # async def _handle_graph_event(
+    #     self,
+    #     state: AdvisorState,
+    #     event: dict[str, Any],
+    # ) -> AgentStreamEvent | None:
+
+    #     print("=" * 80)
+    #     print(f"Event     : {event.get('event')}")
+    #     print(f"Name      : {event.get('name')}")
+    #     print(f"Run ID    : {event.get('run_id')}")
+    #     print(f"Parent ID : {event.get('parent_ids')}")
+    #     print("=" * 80)
+
+    #     return None
 
     # async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
 
@@ -228,22 +342,205 @@ class AdvisorWorkflow:
     #     async for event in self._llm_node.stream(state):
     #         yield event
 
-    async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
 
-        async for event in self._graph.astream_events(
-            state,
-            config=WorkflowConfig.config(state),
-            version="v2",
-        ):
-            yield await self._handle_graph_event(event)
 
-    async def resume_stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+    def _handle_custom_stream(
+        self,
+        state: AdvisorState,
+        chunk: dict[str, Any],
+    ) -> AgentStreamEvent | None:
 
-        async for event in self._graph.astream_events(
-            Command(
-                resume=state.request.workflow_resume,
-            ),
-            config=WorkflowConfig.config(state),
-            version="v2",
-        ):
-            yield await self._handle_graph_event(event)
+        stream_type = chunk.get("type")
+
+        if stream_type =='prompt_start':
+            
+            return AgentStreamEvent(
+                type=StreamEventType.PROMPT_START.value
+            )
+
+        if stream_type == "token":
+            return AgentStreamEvent(
+                type=StreamEventType.TOKEN.value,
+                token=chunk["token"],
+            )
+
+        if stream_type == "completed":
+            return AgentStreamEvent(
+                type=StreamEventType.COMPLETED.value,
+                response=chunk["response"],
+            )
+
+        if stream_type == "error":
+            return AgentStreamEvent(
+                type=StreamEventType.ERROR.value,
+                message=chunk["message"],
+            )
+
+        return None
+
+
+    async def _handle_update_stream(
+        self,
+        state: AdvisorState,
+        chunk: dict[str, Any],
+    ) -> AsyncIterator[AgentStreamEvent]:
+
+
+        if "__interrupt__" in chunk:
+
+            interrupt = chunk["__interrupt__"][0]
+
+            yield AgentStreamEvent(
+                type=StreamEventType.WORKFLOW_INTERRUPT.value,
+                workflow_interrupt=interrupt.value,
+            )
+
+            return
+
+        node_name = next(iter(chunk))
+        node_state = chunk[node_name]
+
+        if node_name == "planner":
+
+            planner = node_state["planner_result"]
+
+            yield AgentStreamEvent(
+                type=StreamEventType.PLANNER_END.value,
+                metadata={
+                    "intent": planner.intent.value,
+                    "tools": [t.value for t in planner.selected_tools],
+                    "confidence": planner.confidence,
+                },
+            )
+
+        elif node_name == "tool_execution":
+
+            for result in node_state["tool_results"]:
+
+                yield AgentStreamEvent(
+                    type=StreamEventType.TOOL_END.value,
+                    tool=result["tool"],
+                    success=result["success"],
+                    metadata={
+                        "execution_time_ms": result["execution_time_ms"],
+                    },
+                )
+
+        elif node_name == "prompt_builder":
+
+            prompt = node_state["prompt"]
+
+            yield AgentStreamEvent(
+                type=StreamEventType.PROMPT_END.value,
+                metadata={
+                    "prompt_length": len(prompt.user_prompt),
+                },
+            )
+
+        elif node_name == "tool_failure":
+
+            errors = node_state["errors"]
+
+            message = (
+                errors[-1].message
+                if errors
+                else "Unable to execute the requested tool."
+            )
+
+            yield AgentStreamEvent(
+                type=StreamEventType.ERROR.value,
+                message=message,
+            )
+            
+
+    # async def _handle_update_stream(
+    #     self,
+    #     state: AdvisorState,
+    #     chunk: dict[str, Any],
+    # ) -> AsyncIterator[AgentStreamEvent]:
+
+    #     from pprint import pprint
+
+    #     print("=" * 80)
+    #     pprint(chunk)
+    #     print("=" * 80)
+
+    #     if False:
+    #         yield
+
+        # #
+        # # Planner completed
+        # #
+        # if "planner" in chunk:
+
+        #     yield AgentStreamEvent(
+        #         type=StreamEventType.PLANNER_END.value,
+        #         metadata={
+        #             "intent": state.planner_result.intent.value,
+        #             "tools": [
+        #                 tool.value
+        #                 for tool in state.planner_result.selected_tools
+        #             ],
+        #             "confidence": state.planner_result.confidence,
+        #         },
+        #     )
+
+        #     return
+
+        # #
+        # # Tool execution completed
+        # #
+        # if "tool_execution" in chunk:
+
+        #     for result in state.tool_results:
+
+        #         yield AgentStreamEvent(
+        #             type=StreamEventType.TOOL_END.value,
+        #             tool=result["tool"],
+        #             success=result["success"],
+        #             metadata={
+        #                 "execution_time_ms": result["execution_time_ms"],
+        #             },
+        #         )
+
+        #     return
+
+        # #
+        # # Prompt built
+        # #
+        # if "prompt_builder" in chunk:
+
+        #     yield AgentStreamEvent(
+        #         type=StreamEventType.PROMPT_END.value,
+        #         metadata={
+        #             "prompt_length": len(state.prompt.user_prompt),
+        #         },
+        #     )
+
+        #     return
+
+        # #
+        # # Tool failure
+        # #
+        # if "tool_failure" in chunk:
+
+        #     if state.errors:
+        #         message = state.errors[-1].message
+        #     else:
+        #         message = "Unable to execute the requested tool."
+
+        #     yield AgentStreamEvent(
+        #         type=StreamEventType.ERROR.value,
+        #         message=message,
+        #     )
+
+        #     return
+
+        # #
+        # # LLM finished
+        # #
+        # if "llm" in chunk:
+
+        #     # Nothing to emit.
+        #     # COMPLETED comes from the custom stream.
+        #     return

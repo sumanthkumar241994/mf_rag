@@ -36,7 +36,7 @@ class SchemeService(BaseWorkflowService[SchemeDetails]):
     async def execute(
         self,
         state: AdvisorState,
-    ) -> WorkflowExecution[SchemeDetails]:
+    ) -> WorkflowExecution[SchemeDetails] | None:
         """
         Retrieves scheme information and enriches AdvisorState.
         """
@@ -49,7 +49,7 @@ class SchemeService(BaseWorkflowService[SchemeDetails]):
         )
 
         if search_results is None:
-            return
+            return None
 
         resolved_schemes = self._resolve_schemes(
             search_results=search_results,
@@ -63,17 +63,14 @@ class SchemeService(BaseWorkflowService[SchemeDetails]):
         )
 
         if schemes is None:
-            return
+            return None
 
         execution = self._create_workflow_execution(
             state=state,
-            capability=Capability.INVESTMENT,
+            capability=Capability.SCHEME_DETAILS,
             result=schemes,
             complete=True
         )
-
-        if schemes is None:
-            return execution
 
         state.workflow_execution = execution
         state.schemes = schemes
@@ -128,6 +125,7 @@ class SchemeService(BaseWorkflowService[SchemeDetails]):
             )
 
             if not result.success:
+                state.workflow_execution = None
                 state.add_error(
                     AdvisorError.from_gateway(
                         error=result.error,

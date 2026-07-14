@@ -75,15 +75,20 @@ class Orchestrator:
                                 conversation_id=request.conversation_id,
                                 workflow='advisor'
                             )
-            await self.conversation_service.save_message(
-                conversation=conversation,
-                role=MessageRole.USER.value,
-                content=request.query
-            )
+
+            if request.query:
+                await self.conversation_service.save_message(
+                    conversation=conversation,
+                    role=MessageRole.USER.value,
+                    content=request.query
+                )
 
             history = await self.conversation_service.get_recent_context(conversation.id)
 
-            trace_id = conversation.trace_id if request.workflow_resume else LangfuseHelper.get_trace_id()
+            trace_id = LangfuseHelper.get_trace_id()
+            request.conversation_id = conversation.id
+
+            trace_id_ctx.set(trace_id)
 
             state = AdvisorState(
                 request=request,
@@ -99,6 +104,7 @@ class Orchestrator:
                     }
                 )
             stream_response = None 
+            workflow_interrupt = None
 
             if request.workflow_resume:
                 stream = self.agent.resume_stream(state)
@@ -110,6 +116,10 @@ class Orchestrator:
 
                 if event.type == StreamEventType.COMPLETED.value:
                     stream_response = event.response
+
+                elif event.type == StreamEventType.WORKFLOW_INTERRUPT.value:
+                    workflow_interrupt = event.workflow_interrupt
+                    break
 
             if stream_response:
                 metadata = {}
@@ -126,3 +136,7 @@ class Orchestrator:
                     metadata=metadata
 
                 )
+            elif workflow_interrupt:
+                # Workflow paused.
+                # Nothing to persist as assistant message.
+                pass

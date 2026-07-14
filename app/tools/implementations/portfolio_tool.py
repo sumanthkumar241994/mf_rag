@@ -19,5 +19,5 @@ class PortfolioTool(BaseTool):
         execution = await self._portfolio_service.analyze(request.state)
 
         return ToolResponse(
-            success= execution.result is not None
+            success=execution is not None and execution.result is not None
         )

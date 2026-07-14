@@ -155,8 +155,7 @@ class AdvisorAgent(BaseAgent):
 
     async def resume_stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
         async for event in self._advisor_workflow.resume_stream(
-            state=state,
-            answer=state.request.workflow_resume,
+            state=state
         ):
             yield event
     

@@ -23,12 +23,15 @@ serde = JsonPlusSerializer(
             "app.workflows.workflow.models.workflow_execution",
             "WorkflowExecution",
         ),
+        (
+            "app.business.portfolio.analysis.models.portfolio_analysis",
+            "PortfolioAnalysis",
+        ),
         "app.business.goal.models",
         "app.business.portfolio.models",
         "app.business.advisor.models",
         "app.workflows.workflow.models",
         "app.business.advisor.enums",
-        "app.business.portfolio.analysis.models"
     ]
 )
 

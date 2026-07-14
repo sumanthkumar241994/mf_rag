@@ -7,6 +7,7 @@ from app.core.config.settings import settings
 from app.core.config.aws import AWS
 
 from app.dtos.agents.stream_event import AgentStreamEvent
+from app.dtos.llm.llm_chunk import LLMChunk
 from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_usage import LLMUsage
@@ -107,8 +108,69 @@ class GemmaProvider(LLMProvider):
     #                 finish_reason=choices[0].get('finish_reason')
     #             )
 
+    # @trace_step("llm_runtime_stream")
+    # async def stream(self, request: LLMRequest) -> AsyncIterator[AgentStreamEvent]:
+    #     body = self._build_request_body(request)
+
+    #     response = await asyncio.to_thread(
+    #         self.bedrock_client.invoke_model_with_response_stream,
+    #         modelId=self.MODEL_ID,
+    #         body=json.dumps(body)
+    #     )
+
+    #     stream = response['body']
+
+    #     stream_response = LLMStreamResponse()
+
+    #     for event in stream:
+    #         chunk = event.get('chunk')
+    #         if not chunk:
+    #             continue
+
+    #         payload = json.loads(chunk['bytes'].decode('utf-8'))
+
+    #         choices = payload.get('choices', [])
+    #         if not choices:
+    #             continue
+
+    #         delta = choices[0].get("delta",{})
+    #         if not delta:
+    #             continue
+
+    #         content = delta.get("content")
+
+    #         if "<reasoning>" not in content and "</reasoning>" not in content :
+    #             stream_response.answer += content
+    #             yield AgentStreamEvent(
+    #                 type=StreamEventType.TOKEN.value,
+    #                 token=content
+    #             )
+
+    #         # Final Chunk
+    #         invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
+
+    #         if invocation_metrics:
+    #             stream_response.usage = LLMUsage(
+    #                 input_tokens=invocation_metrics['inputTokenCount'],
+    #                 output_tokens=invocation_metrics['outputTokenCount'],
+    #                 total_tokens =invocation_metrics['inputTokenCount'] + invocation_metrics['outputTokenCount']
+    #             )
+
+    #             stream_response.metrics = LLMMetrics(
+    #                 model = self.MODEL_ID,
+    #                 latency_ms=invocation_metrics['invocationLatency'],
+    #                 first_token_latency_ms=invocation_metrics['firstByteLatency'],
+    #                 invocation_latency_ms=invocation_metrics['invocationLatency'],
+    #                 finish_reason=choices[0].get('finish_reason')
+    #             )
+
+    #             yield AgentStreamEvent(
+    #                 type=StreamEventType.COMPLETED.value,
+    #                 response=stream_response
+    #             )
+
     @trace_step("llm_runtime_stream")
-    async def stream(self, request: LLMRequest) -> AsyncIterator[AgentStreamEvent]:
+    async def astream(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
         body = self._build_request_body(request)
 
         response = await asyncio.to_thread(
@@ -119,7 +181,10 @@ class GemmaProvider(LLMProvider):
 
         stream = response['body']
 
-        stream_response = LLMStreamResponse()
+        answer: list[str] = []
+
+        usage: LLMUsage | None = None
+        metrics: LLMMetrics | None = None
 
         for event in stream:
             chunk = event.get('chunk')
@@ -138,24 +203,21 @@ class GemmaProvider(LLMProvider):
 
             content = delta.get("content")
 
-            if "<reasoning>" not in content and "</reasoning>" not in content :
-                stream_response.answer += content
-                yield AgentStreamEvent(
-                    type=StreamEventType.TOKEN.value,
-                    token=content
-                )
+            if content and "<reasoning>" not in content and "</reasoning>" not in content :
+                answer.append(content)
+                yield LLMChunk(token=content)
 
             # Final Chunk
             invocation_metrics = payload.get("amazon-bedrock-invocationMetrics")
 
             if invocation_metrics:
-                stream_response.usage = LLMUsage(
+                usage = LLMUsage(
                     input_tokens=invocation_metrics['inputTokenCount'],
                     output_tokens=invocation_metrics['outputTokenCount'],
                     total_tokens =invocation_metrics['inputTokenCount'] + invocation_metrics['outputTokenCount']
                 )
 
-                stream_response.metrics = LLMMetrics(
+                metrics = LLMMetrics(
                     model = self.MODEL_ID,
                     latency_ms=invocation_metrics['invocationLatency'],
                     first_token_latency_ms=invocation_metrics['firstByteLatency'],
@@ -163,9 +225,12 @@ class GemmaProvider(LLMProvider):
                     finish_reason=choices[0].get('finish_reason')
                 )
 
-                yield AgentStreamEvent(
-                    type=StreamEventType.COMPLETED.value,
-                    response=stream_response
+                yield LLMChunk(
+                    response = LLMResponse(
+                        answer = "".join(answer),
+                        usage=usage,
+                        metrics=metrics
+                    )
                 )
 
     def _build_request_body(self, request: LLMRequest) -> dict:

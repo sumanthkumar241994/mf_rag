@@ -1,5 +1,6 @@
 from typing import AsyncIterator
 from app.dtos.agents.stream_event import AgentStreamEvent
+from app.dtos.llm.llm_chunk import LLMChunk
 from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_stream_response import LLMStreamResponse
@@ -48,27 +49,53 @@ class LLMGateway:
 
         return response
 
-    async def stream(self, request: LLMRequest) -> AsyncIterator[AgentStreamEvent]:
-        async for event in self.provider.stream(request):
-            if event.type == StreamEventType.COMPLETED.value and event.response:
-                event.response.metrics.cost = CostCalculator.calculate(
-                                model=event.response.metrics.model,
-                                input_tokens=event.response.usage.input_tokens,
-                                output_tokens=event.response.usage.output_tokens
+    # async def stream(self, request: LLMRequest) -> AsyncIterator[AgentStreamEvent]:
+    #     async for event in self.provider.stream(request):
+    #         if event.type == StreamEventType.COMPLETED.value and event.response:
+    #             event.response.metrics.cost = CostCalculator.calculate(
+    #                             model=event.response.metrics.model,
+    #                             input_tokens=event.response.usage.input_tokens,
+    #                             output_tokens=event.response.usage.output_tokens
+    #                         )
+
+    #             await self.sqs_publisher.publish(
+    #                     LLMGenerationCompletedEvent(
+    #                         trace_id=LangfuseHelper.get_trace_id(),
+    #                         parent_observation_id=LangfuseHelper.get_observation_id(),
+    #                         request=request,
+    #                         answer=event.response.answer,
+    #                         usage=event.response.usage,
+    #                         metrics=event.response.metrics
+    #                     )
+    #                 )
+
+    #         yield event
+
+    async def astream(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
+        async for chunk in self.provider.astream(request):
+            if chunk.response is not None:
+                response = chunk.response
+
+                if response.metrics is not None and response.usage is not None:
+                    response.metrics.cost = CostCalculator.calculate(
+                                model=response.metrics.model,
+                                input_tokens=response.usage.input_tokens,
+                                output_tokens=response.usage.output_tokens
                             )
 
-                await self.sqs_publisher.publish(
+                    await self.sqs_publisher.publish(
                         LLMGenerationCompletedEvent(
                             trace_id=LangfuseHelper.get_trace_id(),
                             parent_observation_id=LangfuseHelper.get_observation_id(),
                             request=request,
-                            answer=event.response.answer,
-                            usage=event.response.usage,
-                            metrics=event.response.metrics
+                            answer=response.answer,
+                            usage=response.usage,
+                            metrics=response.metrics
                         )
                     )
 
-            yield event
+                
+            yield chunk
         
         
 

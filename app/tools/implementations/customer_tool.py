@@ -19,5 +19,5 @@ class CustomerTool(BaseTool):
         execution = await self._customer_service.retrieve(request.state)
 
         return ToolResponse(
-            success= execution.result is not None
+            success=execution is not None and execution.result is not None
         )
