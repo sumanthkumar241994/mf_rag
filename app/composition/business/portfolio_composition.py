@@ -10,14 +10,17 @@ from app.business.portfolio.analysis.recommendation.recommendation_engine import
 from app.business.portfolio.gateways.falcon_portfolio_gateway import FalconPortfolioGateway
 from app.business.portfolio.mapper.portfolio_mapper import PortfolioMapper
 from app.business.portfolio.service.portfolio_service import PortfolioService
+from app.composition.workflow_composition import WorkflowComposition
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.portfolio_tool import PortfolioTool
+from app.workflows.workflow.service.workflow_service import WorkflowService
 
 
 class PortfolioComposition:
     def __init__(
         self,
-        portfolio_gateway : FalconPortfolioGateway
+        portfolio_gateway : FalconPortfolioGateway,
+        workflow_service: WorkflowService
     ):  
         # Analyzers initialization
         self.performance_analyzer = PerformanceAnalyzer()
@@ -42,7 +45,8 @@ class PortfolioComposition:
         self.portofio_service = PortfolioService(
             portfolio_gateway=portfolio_gateway,
             portfolio_mapper=self.portfolio_mapper,
-            portfolio_analyzer=self.portfolio_analyzer
+            portfolio_analyzer=self.portfolio_analyzer,
+            workflow_service=workflow_service
         )
 
         self.definition = ToolDefinition(

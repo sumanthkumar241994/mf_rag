@@ -8,6 +8,7 @@ from app.business.portfolio.analysis.portfolio_analyzer.performance_analyzer imp
 from app.business.portfolio.analysis.portfolio_analyzer.risk_analyzer import RiskAnalyzer
 from app.business.portfolio.analysis.recommendation.recommendation_engine import RecommendationEngine
 from app.business.portfolio.models import Portfolio
+from app.business.portfolio.models.goal_portfolio_snapshot import GoalPortfolioSnapshot
 
 
 class PortfolioAnalyzer:
@@ -43,6 +44,15 @@ class PortfolioAnalyzer:
 
         recommendations = self._recommendation_engine.generate(insights)
 
+        goal_portfolio_snapshot = GoalPortfolioSnapshot(
+            current_corpus=portfolio.totals.current_value,
+            total_investment=portfolio.totals.net_investment,
+            monthly_investment=portfolio.summary.monthly_sip,
+            equity_value=portfolio.category_allocation.equity.current_value,
+            debt_value=portfolio.category_allocation.debt.current_value,
+            hybrid_value=portfolio.category_allocation.hybrid.current_value,
+        )
+
         return PortfolioAnalysis(
             portfolio=portfolio,
             performance=performance,
@@ -50,5 +60,6 @@ class PortfolioAnalyzer:
             risk=risk,
             health=health,
             insights=insights,
-            recommendations=recommendations
+            recommendations=recommendations,
+            goal_snapshot=goal_portfolio_snapshot
         )

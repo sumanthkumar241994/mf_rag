@@ -137,14 +137,44 @@ class AdvisorAgent(BaseAgent):
     
     async def run(self, state: AdvisorState) -> AgentResponse:
         state = await self._advisor_workflow.invoke(state)
+        return self._build_response(state)
+    
+    async def resume(self, state: AdvisorState) -> AgentResponse:
+        state = await self._advisor_workflow.resume(
+            state=state,
+            answer=state.request.workflow_resume,
+        )
 
-        metadata = state.metadata
+        return self._build_response(state)
+
+
+    async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+        async for event in self._advisor_workflow.stream(state):
+            yield event
+
+
+    async def resume_stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
+        async for event in self._advisor_workflow.resume_stream(
+            state=state
+        ):
+            yield event
+    
+    def _build_response(self, state: AdvisorState) -> AgentResponse:
+
+        metadata = dict(state.metadata)
 
         if state.llm_response and state.llm_response.usage is not None:
             metadata['llm_usage'] = asdict(state.llm_response.usage)
 
         if state.llm_response and state.llm_response.metrics is not None:
             metadata['llm_metrics'] = asdict(state.llm_response.metrics)
+
+        if state.workflow_execution and state.workflow_execution.interrupted:
+            return AgentResponse(
+                conversation_id=state.request.conversation_id,
+                workflow_interrupt=state.workflow_execution.interrupt,
+                metadata=state.metadata,
+            )
 
         return AgentResponse(
             conversation_id=state.request.conversation_id,
@@ -153,7 +183,4 @@ class AdvisorAgent(BaseAgent):
             chunk_count=state.sources,
             metadata=metadata
         )
-    
-    async def stream(self, state: AdvisorState) -> AsyncIterator[AgentStreamEvent]:
-        async for event in self._advisor_workflow.stream(state):
-            yield event
+

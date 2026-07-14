@@ -1,4 +1,5 @@
 from app.business.advisor.enums.tool_type import ToolType
+from app.business.scheme.models.scheme_details import SchemeDetails
 from app.prompts.builder.advisor.sections.base_section import BaseSection
 from app.workflows.advisor.advisor_state import AdvisorState
 
@@ -28,13 +29,13 @@ class SchemeSection(BaseSection):
     def _append_scheme(
         self,
         lines: list[str],
-        scheme,
+        scheme: SchemeDetails,
     ) -> None:
 
         self.add_field(lines, "Name", scheme.name)
         self.add_field(lines, "AMC", scheme.amc_name)
         self.add_field(lines, "Category", scheme.category)
-        self.add_field(lines, "Sub Category", scheme.sub_category)
+        self.add_field(lines, "Sub Category", scheme.scheme_type)
         self.add_field(lines, "Investment Option", scheme.investment_option)
 
         self.add_field(lines, "NAV", scheme.nav)
@@ -43,15 +44,15 @@ class SchemeSection(BaseSection):
         self.add_field(lines, "Rating", scheme.rating)
         self.add_field(lines, "AUM", scheme.aum)
 
-        self.add_field(lines, "Fund Manager", scheme.fund_manager)
+        self.add_field(lines, "Fund Manager", scheme.fund_manager_name)
         self.add_field(lines, "Benchmark", scheme.benchmark)
 
-        self.add_field(lines, "1 Year Return", scheme.one_year_return)
-        self.add_field(lines, "3 Year Return", scheme.three_year_return)
-        self.add_field(lines, "5 Year Return", scheme.five_year_return)
+        self.add_field(lines, "1 Year Return", scheme.one_year_return_percent)
+        self.add_field(lines, "3 Year Return", scheme.three_months_return_percent)
+        self.add_field(lines, "5 Year Return", scheme.five_years_return_percent)
 
-        self.add_field(lines, "Minimum SIP", scheme.minimum_sip)
-        self.add_field(lines, "Minimum Lumpsum", scheme.minimum_lumpsum)
+        self.add_field(lines, "Minimum SIP", scheme.minimum_sip_amount)
+        self.add_field(lines, "Minimum Lumpsum", scheme.minimum_initial_investment)
 
         self.add_field(lines, "Exit Load", scheme.exit_load)
 
@@ -65,14 +66,14 @@ class SchemeSection(BaseSection):
 
             for holding in scheme.company_holdings[:10]:
                 lines.append(
-                    f"- {holding.company}: {holding.allocation}%"
+                    f"- {holding.company_name}: {holding.holding_percentage}%"
                 )
 
-        if scheme.sector_holdings:
+        if scheme.sectoral_holdings:
             lines.append("")
             lines.append("Sector Allocation:")
 
-            for sector in scheme.sector_holdings[:10]:
+            for sector in scheme.sectoral_holdings[:10]:
                 lines.append(
                     f"- {sector.sector}: {sector.allocation}%"
                 )

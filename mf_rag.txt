@@ -8400,3 +8400,520 @@ Planner
                             │
                             ▼
                     state.goal_analysis
+
+----------------------------
+
+                         GoalService
+                              │
+                              ▼
+                 CustomerContextProvider
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+    CustomerCache      PortfolioCache   CustomerContextBuilder
+          │                   │
+      Cache Miss         Cache Miss
+          │                   │
+          ▼                   ▼
+   CustomerGateway     PortfolioGateway
+          │                   │
+          └───────────┬───────┘
+                      ▼
+                  Update Cache
+
+
+-------------------------
+
+                    get(customer_id)
+                           │
+          ┌────────────────┴───────────────┐
+          │                                │
+          ▼                                ▼
+CustomerCache.get()             PortfolioCache.get()
+          │                                │
+          └──────────────┬─────────────────┘
+                         │
+               Anything missing?
+                         │
+                No ─────────────► Builder
+                         │
+                        Yes
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+CustomerGateway.get()         PortfolioGateway.get()
+          │                             │
+          └──────────────┬──────────────┘
+                         │
+                 Parallel cache writes
+                         │
+                         ▼
+                     Builder
+                         │
+                         ▼
+                 CustomerContext
+
+
+--------------------------
+
+User Query
+      │
+      ▼
+Goal Parser
+      │
+      ▼
+GoalParameters (partial)
+      │
+      ▼
+ParameterResolver
+      │
+      ▼
+GoalParameters (complete)
+      │
+      ▼
+GoalCalculator
+      │
+      ▼
+GoalProjection
+      │
+      ▼
+GoalAnalyzer
+      │
+      ▼
+GoalAnalysis
+
+------------
+
+I think it's worth treating this as an **architecture migration** rather than a code refactor. Since you're already fully committed to LangGraph (planner, tools, interrupts, checkpoints, resume), the streaming should also become **LangGraph-native**.
+
+I'd do it in the following order.
+
+---
+
+# Phase 1 - Define the new LLM contract
+
+## Current
+
+```text
+Provider
+    ↓
+AgentStreamEvent
+```
+
+## New
+
+```text
+Provider
+    ↓
+LLMChunk
+```
+
+Create
+
+```python
+@dataclass(slots=True)
+class LLMChunk:
+    token: str | None = None
+    response: LLMResponse | None = None
+```
+
+This becomes the common contract between
+
+* Gemma
+* Claude
+* OpenAI
+* DeepSeek
+
+No application events.
+
+---
+
+# Phase 2 - Refactor Provider
+
+Current
+
+```python
+async def stream(...)
+```
+
+↓
+
+New
+
+```python
+async def astream(...)
+```
+
+Instead of
+
+```python
+yield AgentStreamEvent(...)
+```
+
+yield
+
+```python
+LLMChunk(
+    token="Hello"
+)
+```
+
+Final chunk
+
+```python
+LLMChunk(
+    response=LLMResponse(...)
+)
+```
+
+No AgentStreamEvent.
+
+---
+
+# Phase 3 - Refactor Gateway
+
+Gateway becomes
+
+```text
+Provider
+
+↓
+
+LLMChunk
+
+↓
+
+Cost Calculation
+
+↓
+
+Langfuse
+
+↓
+
+SQS
+
+↓
+
+LLMChunk
+```
+
+Notice
+
+Gateway still owns
+
+* Cost
+* Langfuse
+* SQS
+
+because those are LLM concerns.
+
+---
+
+# Phase 4 - Refactor LLMNode
+
+Delete
+
+```python
+stream()
+```
+
+Keep only
+
+```python
+__call__()
+```
+
+It becomes
+
+```text
+LLMGateway.astream()
+
+↓
+
+collect tokens
+
+↓
+
+build answer
+
+↓
+
+state.llm_response
+
+↓
+
+return state
+```
+
+No SSE.
+
+No AgentStreamEvent.
+
+No yield.
+
+---
+
+# Phase 5 - Convert LLMNode into LangGraph Runnable
+
+Instead of
+
+```text
+LLMNode
+
+↓
+
+calls gateway
+```
+
+it becomes
+
+```text
+LLMNode
+
+↓
+
+returns updated AdvisorState
+```
+
+LangGraph now owns execution.
+
+---
+
+# Phase 6 - Remove every stream()
+
+Delete
+
+```text
+PlannerNode.stream()
+
+ToolExecutionNode.stream()
+
+PromptBuilderNode.stream()
+
+LLMNode.stream()
+```
+
+Nodes become
+
+```python
+async def __call__()
+```
+
+only.
+
+---
+
+# Phase 7 - Rewrite AdvisorWorkflow.stream()
+
+Current
+
+```text
+Planner.stream()
+
+↓
+
+Tool.stream()
+
+↓
+
+Prompt.stream()
+
+↓
+
+LLM.stream()
+```
+
+Replace completely with
+
+```python
+graph.astream_events(...)
+```
+
+This becomes the **only** streaming implementation.
+
+---
+
+# Phase 8 - Implement Graph Event Handler
+
+This becomes the heart of streaming.
+
+```python
+async def _handle_graph_event(
+    event
+) -> AgentStreamEvent | None:
+```
+
+It converts
+
+```text
+LangGraph Event
+
+↓
+
+AgentStreamEvent
+```
+
+For example
+
+```
+on_chain_start
+```
+
+↓
+
+```
+STATUS
+```
+
+```
+on_chat_model_stream
+```
+
+↓
+
+```
+TOKEN
+```
+
+```
+interrupt
+```
+
+↓
+
+```
+WORKFLOW_INTERRUPT
+```
+
+```
+on_chain_end
+```
+
+↓
+
+ignore
+
+---
+
+# Phase 9 - Update Agent
+
+Agent becomes
+
+```text
+AdvisorWorkflow.stream()
+
+↓
+
+yield AgentStreamEvent
+```
+
+Nothing else.
+
+---
+
+# Phase 10 - Orchestrator
+
+Almost nothing changes.
+
+Current
+
+```python
+async for event in stream:
+```
+
+still works.
+
+Conversation persistence
+
+still works.
+
+---
+
+# Phase 11 - Remove AgentStreamEvent dependency from LLM
+
+This is important.
+
+Currently
+
+```text
+Gemma
+
+↓
+
+AgentStreamEvent
+```
+
+After migration
+
+```text
+Gemma
+
+↓
+
+LLMChunk
+```
+
+Now your provider has no dependency on
+
+* Advisor
+* FastAPI
+* SSE
+
+Only LLM models.
+
+---
+
+# Phase 12 - Final architecture
+
+```text
+                 FastAPI
+                     │
+                     ▼
+             AdvisorAgent
+                     │
+                     ▼
+           AdvisorWorkflow.stream()
+                     │
+                     ▼
+        graph.astream_events()
+                     │
+      ┌──────────────┼──────────────┐
+      │              │              │
+      ▼              ▼              ▼
+ Planner         Tool Node      LLM Node
+      │              │              │
+      ▼              ▼              ▼
+  AdvisorState   AdvisorState   AdvisorState
+                     │
+                     ▼
+          _handle_graph_event()
+                     │
+                     ▼
+            AgentStreamEvent
+                     │
+                     ▼
+                 Frontend
+```
+
+---
+
+# One thing is still missing
+
+Everything above is straightforward **except the LLM node**.
+
+That is the only piece where LangGraph differs from your current architecture.
+
+Right now the node **consumes** a stream.
+
+With LangGraph, the node should become a **streaming runnable**, so LangGraph itself emits:
+
+```
+on_chat_model_stream
+```
+
+events.
+
+That is the one component I'd design carefully before writing any code, because once it's correct, the rest of the migration becomes mostly mechanical. It's also the point where your manual streaming implementation is completely replaced by LangGraph's native event system.
+

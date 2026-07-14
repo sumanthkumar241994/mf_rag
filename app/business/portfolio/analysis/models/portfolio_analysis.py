@@ -7,6 +7,7 @@ from app.business.portfolio.analysis.models.performance_analysis import Performa
 from app.business.portfolio.analysis.models.recommendation import Recommendation
 from app.business.portfolio.analysis.models.risk_analysis import RiskAnalysis
 from app.business.portfolio.models import Portfolio
+from app.business.portfolio.models.goal_portfolio_snapshot import GoalPortfolioSnapshot
 
 
 @dataclass(slots=True)
@@ -18,3 +19,4 @@ class PortfolioAnalysis:
     health: HealthAnalysis
     insights: list[Insight]
     recommendations: list[Recommendation]
+    goal_snapshot: GoalPortfolioSnapshot

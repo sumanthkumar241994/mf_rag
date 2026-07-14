@@ -10,6 +10,8 @@ from app.business.advisor.models.planner_result import PlannerResult
 from app.business.advisor.models.prompt import Prompt
 from app.business.approval.models.approval_context import ApprovalContext
 from app.business.customer.models.customer import Customer
+from app.business.goal.mapper.goal_mapper import GoalMapper
+from app.business.goal.models.goal_analysis import GoalAnalysis
 from app.business.portfolio.analysis.models import insight
 from app.business.portfolio.analysis.models.portfolio_analysis import PortfolioAnalysis
 from app.business.scheme.models.scheme_details import SchemeDetails
@@ -18,8 +20,12 @@ from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.request_context import RequestContext
 from app.dtos.retrieval.llm_context import LLMContext
 from app.dtos.workflow.tool_execution_result import ToolExecutionResult
+from app.mapper.planner_result_mapper import PlannerResultMapper
+from app.mapper.workflow_execution_mapper import WorkflowExecutionMapper
 from app.schemas.conversation.cache_message import CacheMessage
 from app.schemas.responses.advisor import SourceResponse
+from app.workflows.workflow.models.workflow_execution import WorkflowExecution
+from app.workflows.workflow.models.workflow_interrupt import WorkflowInterrupt
 
 
 @dataclass(slots=True)
@@ -43,9 +49,16 @@ class AdvisorState:
     customer: Customer | None = None
     # Domain results
     portfolio_analysis: PortfolioAnalysis | None = None
+
+    goal_analysis: GoalAnalysis | None = None
     
     scheme_query: SchemeQuery | None = None
     schemes: list[SchemeDetails] | None = None
+
+    # workflow
+    workflow_execution : WorkflowExecution | None = None
+
+    workflow_interrupt: WorkflowInterrupt | None = None
 
     # memory
     #memory: MemoryContext | None = None 
@@ -91,6 +104,35 @@ class AdvisorState:
     
     def clear_error(self, source: str):
         self.errors = [error for error in self.errors if error.source != source]
+
+
+    def restore(self) -> None:
+        
+        if isinstance(self.request, dict):
+            self.request = RequestContext(**self.request)
+
+        if self.errors:
+            self.errors = [
+                error
+                if isinstance(error, AdvisorError)
+                else AdvisorError(**error)
+                for error in self.errors
+        ]
+
+        if isinstance(self.planner_result, dict):
+            self.planner_result = PlannerResultMapper.from_dict(
+                self.planner_result
+            )
+
+        if isinstance(self.workflow_execution, dict):
+            self.workflow_execution = WorkflowExecutionMapper.from_dict(
+                self.workflow_execution
+            )
+
+        if isinstance(self.goal_analysis, dict):
+            self.goal_analysis = GoalMapper.from_dict(
+                self.goal_analysis
+            )
 
 
 

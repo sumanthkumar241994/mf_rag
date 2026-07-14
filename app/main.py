@@ -18,6 +18,8 @@ from app.observability import setup_logging
 from app.langfuse.client import langfuse_client
 import logging
 
+from app.infrastructure.workflow.workflow_checkpointer import workflow_checkpointer
+
 logger = logging.getLogger(__name__)
 
 # import debugpy
@@ -26,6 +28,7 @@ logger = logging.getLogger(__name__)
 # print("⏳ Waiting for debugger to attach...")
 # debugpy.wait_for_client()  # Execution will pause here until debugger is attached
 # print("✅ Debugger Attached. Running Falcon App...")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,7 +43,14 @@ async def lifespan(app: FastAPI):
 
     _ = langfuse_client
 
+    await workflow_checkpointer.initialize()
+    logger.info("Workflow checkpointer initalized")
+
+    app.state.workflow_checkpointer = workflow_checkpointer.checkpointer
+
     yield
+
+    await workflow_checkpointer.shutdown()
     await engine.dispose()
     langfuse_client.flush()
     print("Shutting down...")

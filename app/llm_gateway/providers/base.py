@@ -14,7 +14,7 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def stream(
+    async def astream(
         self,
         request: LLMRequest,
         stream_response: LLMStreamResponse
