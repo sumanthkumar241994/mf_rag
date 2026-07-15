@@ -19,8 +19,11 @@ class Orchestrator:
     def __init__(self, conversation_service: ConversationService, agent: AdvisorAgent):
         self.conversation_service = conversation_service
         self.agent = agent
+
     async def run(self, request: RequestContext) -> AgentResponse:
         start_time = time.perf_counter() 
+
+        trace_id = LangfuseHelper.get_trace_id()
 
         async with self.conversation_service.uow:
 
@@ -30,14 +33,18 @@ class Orchestrator:
                                 workflow='advisor'
                             )
 
-            if request.query:
-                await self.conversation_service.save_message(
+            if request.workflow_resume:
+                await self.conversation_service.add_resume_message(
                     conversation=conversation,
-                    role=MessageRole.USER.value,
-                    content=request.query or request.workflow_resume
+                    content=request.workflow_resume,
+                    trace_id=trace_id   
                 )
-
-            trace_id = LangfuseHelper.get_trace_id()
+            else:
+                await self.conversation_service.add_user_message(
+                    conversation=conversation,
+                    content=request.query,
+                    trace_id=trace_id
+                )
 
             request.conversation_id = conversation.id
 
@@ -48,7 +55,7 @@ class Orchestrator:
             state = AdvisorState(
                 request=request, 
                 history=history,
-                trace_id=LangfuseHelper.get_trace_id(),
+                trace_id=trace_id,
             )
 
             if request.workflow_resume:
@@ -57,10 +64,10 @@ class Orchestrator:
                 response = await self.agent.run(state)
 
             if response.answer:
-                await self.conversation_service.save_message(
+                await self.conversation_service.add_assistant_message(
                     conversation=conversation,
-                    role=MessageRole.ASSISTANT.value,
                     content=response.answer,
+                    trace_id=trace_id,
                     metadata=response.metadata
                 )
             response.response_time_ms = round((time.perf_counter()-start_time) *1000)
@@ -68,7 +75,8 @@ class Orchestrator:
         return response
     
     async def stream(self, request: RequestContext) -> AsyncIterator[AgentStreamEvent]:
-        
+        trace_id = LangfuseHelper.get_trace_id()
+
         async with self.conversation_service.uow:
             conversation = await self.conversation_service.get_or_create_conversation(
                                 customer_id=request.customer_id,
@@ -76,16 +84,21 @@ class Orchestrator:
                                 workflow='advisor'
                             )
 
-            if request.query:
-                await self.conversation_service.save_message(
+            if request.workflow_resume:
+                await self.conversation_service.add_resume_message(
                     conversation=conversation,
-                    role=MessageRole.USER.value,
-                    content=request.query
+                    content=request.workflow_resume,
+                    trace_id=trace_id,
+                )
+            else:
+                await self.conversation_service.add_user_message(
+                    conversation=conversation,
+                    content=request.query,
+                    trace_id=trace_id,
                 )
 
             history = await self.conversation_service.get_recent_context(conversation.id)
-
-            trace_id = LangfuseHelper.get_trace_id()
+            
             request.conversation_id = conversation.id
 
             trace_id_ctx.set(trace_id)
@@ -129,14 +142,18 @@ class Orchestrator:
                 if stream_response.metrics:
                     metadata['llm_metrics'] = asdict(stream_response.metrics)
 
-                await self.conversation_service.save_message(
+                await self.conversation_service.add_assistant_message(
                     conversation=conversation,
-                    role=MessageRole.ASSISTANT.value,
                     content=stream_response.answer,
+                    trace_id=trace_id,
                     metadata=metadata
 
                 )
+
             elif workflow_interrupt:
-                # Workflow paused.
-                # Nothing to persist as assistant message.
-                pass
+                await self.conversation_service.add_interrupt_message(
+                    conversation=conversation,
+                    capability=workflow_interrupt.capability.value,
+                    questions=workflow_interrupt.questions,
+                    trace_id=trace_id,
+                )

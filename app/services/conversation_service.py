@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+import trace
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.conversation_cache import ConversationCache
-from app.enums.conversation import ConversationStatus, MessageRole
+from app.core.config import settings
+from app.enums.conversation import ConversationStatus, MessageRole, MessageType
+from app.events.models.conversation_summary_generate_event import ConversationSummaryGenerateEvent
+from app.events.models.conversation_title_generate_event import ConversationTitleGenerateEvent
+from app.events.publishers.base import EventPublisher
+from app.events.publishers.sqs_publisher import SQSEventPublisher
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.schemas.conversation.cache_message import CacheMessage
@@ -19,13 +25,13 @@ logger = logging.getLogger(__name__)
 class ConversationService:
     def __init__(
         self, 
-        db: AsyncSession,
         uow: ConversationUnitOfWork,
-        cache: ConversationCache
+        cache: ConversationCache,
+        publisher: SQSEventPublisher
     ):  
-        self.db=db
         self.uow = uow
         self.cache = cache
+        self.publisher = publisher
     
     def _create_conversation(
         self,
@@ -51,6 +57,8 @@ class ConversationService:
         sequence_number: int,
         role: MessageRole,
         content: str,
+        message_type: MessageType,
+        trace_id: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Message:
         metadata = metadata or {}
@@ -60,6 +68,7 @@ class ConversationService:
             sequence_number=sequence_number,
             role=role,
             content=content,
+            trace_id=trace_id,
             metadata_=metadata
         )
     
@@ -129,11 +138,116 @@ class ConversationService:
             metadata=metadata
         )
 
-    async def save_message(
+    async def add_user_message(
+    self,
+    conversation: Conversation,
+    content: str,
+    trace_id: str | None = None,
+    ) -> None:
+        """
+        Persists a new user message.
+        """
+
+        await self._save_message(
+            conversation=conversation,
+            role=MessageRole.USER,
+            message_type=MessageType.TEXT,
+            content=content,
+            trace_id=trace_id,
+        )
+
+
+    async def add_resume_message(
+        self,
+        conversation: Conversation,
+        content: str,
+        trace_id: str | None = None,
+    ) -> None:
+        """
+        Persists the user's response that resumes
+        a previously interrupted workflow.
+        """
+
+        await self._save_message(
+            conversation=conversation,
+            role=MessageRole.USER,
+            message_type=MessageType.RESUME,
+            content=content,
+            trace_id=trace_id,
+        )
+
+
+    async def add_interrupt_message(
+        self,
+        conversation: Conversation,
+        capability: str,
+        questions: list[str],
+        trace_id: str | None = None,
+    ) -> None:
+        """
+        Persists a workflow interrupt requesting
+        additional information from the user.
+        """
+
+        await self._save_message(
+            conversation=conversation,
+            role=MessageRole.SYSTEM,
+            message_type=MessageType.INTERRUPT,
+            content = (
+                "Additional information required:\n"
+                + "\n".join(f"- {question}" for question in questions)
+            ),
+            trace_id=trace_id,
+            metadata={
+                "capability": capability,
+                "questions": questions,
+            },
+        )
+
+
+    async def add_assistant_message(
+        self,
+        conversation: Conversation,
+        content: str,
+        trace_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Persists the assistant's final response.
+        """
+
+        await self._save_message(
+            conversation=conversation,
+            role=MessageRole.ASSISTANT,
+            message_type=MessageType.TEXT,
+            content=content,
+            trace_id=trace_id,
+            metadata=metadata,
+        )
+
+        if not conversation.title:
+            await self.publisher.publish(
+                ConversationTitleGenerateEvent(
+                    conversation_id=str(conversation.id)
+                )
+            )
+
+        pending_messages = conversation.message_count - await self.uow.summaries.get_latest_sequence(conversation.id)
+
+        if pending_messages >= settings.CONVERSATION_SUMMARY_INTERVAL:
+            await self.publisher.publish(
+                ConversationSummaryGenerateEvent(
+                    conversation_id=str(conversation.id)
+                )
+            )
+
+    async def _save_message(
         self,
         conversation: Conversation,
         role: MessageRole,
         content: str,
+        message_type: MessageType = MessageType.TEXT,
+        trace_id: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Message:
         """
@@ -146,13 +260,15 @@ class ConversationService:
         """
         metadata = metadata or {}
 
-        last_sqeuence_id = await self.uow.messages.get_last_sequence(conversation.id)
+        sequence_number = await self.uow.conversations.allocate_message_sequence(conversation.id)
 
         message = self._create_message(
             conversation_id=conversation.id,
-            sequence_number=last_sqeuence_id + 1,
+            sequence_number=sequence_number,
             role=role,
             content=content,
+            message_type=message_type,
+            trace_id=trace_id,
             metadata=metadata
         )
 

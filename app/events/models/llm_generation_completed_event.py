@@ -10,6 +10,8 @@ from app.dtos.llm.llm_metrics import LLMMetrics
 
 @dataclass(slots=True)
 class LLMGenerationCompletedEvent(BaseEvent):
+    trace_id: str | None = None
+    parent_observation_id: str | None = None
     request: LLMRequest | None = None
     answer: str | None = None
     usage: LLMUsage | None = None

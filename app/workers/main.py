@@ -17,7 +17,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 async def main():
-    print("starting worker")
+    # import debugpy
+
+    # debugpy.listen(("0.0.0.0", 5676))
+    # print("⏳ Waiting for debugger to attach...")
+    # debugpy.wait_for_client()  # Execution will pause here until debugger is attached
+    # print("✅ Debugger Attached. Running Falcon App...")
+    # print("starting worker")
     worker = get_event_worker()
 
     try:

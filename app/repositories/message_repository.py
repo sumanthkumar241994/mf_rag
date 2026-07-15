@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.enums.conversation import MessageRole, MessageType
 from app.models.message import Message
 
 class MessageRepository:
@@ -79,13 +80,13 @@ class MessageRepository:
 
         return result.scalar_one_or_none()
 
-    async def get_last_sequence(self, conversation_id: UUID) -> int:
-        stmt = select(func.max(Message.sequence_number)).where(Message.conversation_id == conversation_id)
+    # async def get_last_sequence(self, conversation_id: UUID) -> int:
+    #     stmt = select(func.max(Message.sequence_number)).where(Message.conversation_id == conversation_id)
 
-        result = await self.db.execute(stmt)
-        sequence = result.scalar_one()
+    #     result = await self.db.execute(stmt)
+    #     sequence = result.scalar_one()
 
-        return sequence or 0
+    #     return sequence or 0
 
     async def count(self, conversation_id: UUID) -> int:
         stmt = select(func.count(Message.id)).where(Message.conversation_id==conversation_id)
@@ -100,4 +101,86 @@ class MessageRepository:
     async def delete_by_conversation(self, conversation_id: UUID):
         await self.db.execute(delete(Message).where(Message.conversation_id == conversation_id))
 
+    async def get_messages_for_title(
+    self,
+    conversation_id: UUID,
+    limit: int = 10,
+    ) -> list[Message]:
+        """
+        Returns the first few meaningful conversation messages for title generation.
 
+        Excludes system-generated events such as interrupts, summaries, and titles.
+        """
+
+        stmt = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.role.in_(
+                    [
+                        MessageRole.USER,
+                        MessageRole.ASSISTANT,
+                    ]
+                ),
+                Message.message_type.in_(
+                    [
+                        MessageType.TEXT,
+                        MessageType.RESUME,
+                    ]
+                ),
+            )
+            .order_by(Message.sequence_number)
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+
+        return result.scalars().all()
+
+    async def get_messages_after_sequence(
+        self,
+        conversation_id: UUID,
+        sequence_number: int,
+        limit: int | None = None,
+    ) -> list[Message]:
+        """
+        Returns all conversation messages after the given sequence number.
+
+        Used for incremental conversation summaries.
+        """
+
+        stmt = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.sequence_number > sequence_number,
+            )
+            .order_by(Message.sequence_number)
+        )
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self.db.execute(stmt)
+
+        return result.scalars().all()
+
+    async def count_after_sequence(
+    self,
+    conversation_id: UUID,
+    sequence_number: int,
+    ) -> int:
+        """
+        Returns the number of messages after a given sequence.
+        """
+
+        stmt = (
+            select(func.count(Message.id))
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.sequence_number > sequence_number,
+            )
+        )
+
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one()

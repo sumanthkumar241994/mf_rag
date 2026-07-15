@@ -13,6 +13,7 @@ from app.enums.conversation import ConversationStatus
 
 if typing.TYPE_CHECKING:
     from app.models.message import Message
+    from app.models.conversation_summary import ConversationSummary
 
 
 class Conversation(Base):
@@ -33,4 +34,5 @@ class Conversation(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    messages: Mapped[list["Message"]] = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.sequence_number") 
+    messages: Mapped[list["Message"]] = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.sequence_number")
+    summaries: Mapped[list["ConversationSummary"]] = relationship("ConversationSummary", back_populates="conversation", cascade="all, delete-orphan", order_by="ConversationSummary.version") 
