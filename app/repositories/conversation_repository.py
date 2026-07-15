@@ -63,15 +63,15 @@ class ConversationRepository:
         stmt = update(Conversation).where(Conversation.id == conversation_id).values(current_node=node, updated_at=datetime.now(timezone.utc))
         await self.db.execute(stmt)
 
-    async def increment_message_count(self, conversation_id: UUID):
-        conversation = await self.get_by_id(conversation_id=conversation_id)
+    # async def increment_message_count(self, conversation_id: UUID):
+    #     conversation = await self.get_by_id(conversation_id=conversation_id)
 
-        if not conversation:
-            return
+    #     if not conversation:
+    #         return
         
-        conversation.message_count += 1
-        conversation.last_message_at = datetime.now(timezone.utc)
-        await self.db.flush()
+    #     conversation.message_count += 1
+    #     conversation.last_message_at = datetime.now(timezone.utc)
+    #     await self.db.flush()
 
     async def complete(self, conversation_id: UUID):
         stmt = update(Conversation).where(
@@ -107,6 +107,31 @@ class ConversationRepository:
             )
         await self.db.execute(stmt)
 
+
+    async def allocate_message_sequence(self, conversation_id: UUID) -> int:
+        """
+        Atomically increments the conversation message counter and
+        returns the next sequence number.
+
+        This prevents race conditions when multiple messages are
+        persisted concurrently for the same conversation.
+        """
+
+        stmt = (
+            update(Conversation)
+            .where(Conversation.id == conversation_id)
+            .values(
+                message_count=Conversation.message_count + 1,
+                last_message_at=datetime.now(timezone.utc),
+            )
+            .returning(Conversation.message_count)
+        )
+
+        result = await self.db.execute(stmt)
+
+        sequence = result.scalar_one()
+
+        return sequence
 
     
         

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
 
     MF_API_BASE_URL: str
+    CONVERSATION_SUMMARY_INTERVAL: int = 1
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 

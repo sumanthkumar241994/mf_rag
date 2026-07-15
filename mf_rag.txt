@@ -9338,4 +9338,356 @@ That gives you a straightforward rollback path if anything unexpected comes up, 
 
 -----------
 
+1. Conversation Persistence
+2. Memory
+3. Human-in-the-Loop polish
+4. Feedback
+5. Evaluation
+6. Jira Tool
+
+──────────────────────────────
+
+7. Reflection
+8. Multi-Agent
+9. MCP
+10. A2A
+
+
+---------------------
+
+
+1. Conversation Persistence
+2. LLM Planner
+3. Memory
+4. Human-in-the-Loop polish
+5. Feedback
+6. Evaluation
+7. Jira Tool
+8. Reflection
+9. Multi-Agent
+10. MCP / A2A
+
+
+----------------------------
+
+
+
+High Priority (I agree)
+1. ✅ Trace ID on Message
+
+I would add a dedicated column:
+
+trace_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+
+Not in metadata.
+
+Reason:
+
+Open Langfuse trace from a message
+Find all messages for a trace
+Evaluation
+Debugging
+Resume chain
+2. ✅ Sequence Number Race Condition
+
+Current flow:
+
+MAX(sequence_number)
+
+↓
+
++1
+
+↓
+
+INSERT
+
+is susceptible to concurrent inserts.
+
+This is the only correctness issue I'd fix before production.
+
+3. ✅ Conversation Summary (Versioned)
+
+I completely agree with making it versioned.
+
+Something like:
+
+conversation_summaries
+
+id
+conversation_id
+version
+summary
+generated_by
+created_at
+
+Later:
+
+v1
+
+↓
+
+v2
+
+↓
+
+v3
+
+This also enables different summarization strategies.
+
+Medium Priority
+4. Conversation Title Generation
+
+Right now
+
+title
+
+exists but stays null.
+
+Eventually:
+
+Conversation starts
+
+↓
+
+5-10 messages
+
+↓
+
+LLM generates title
+
+↓
+
+Update conversation
+
+Example
+
+Retirement Planning
+
+Exit Load Clarification
+
+SIP Recommendation
+
+Very useful in UI.
+
+Not urgent though.
+
+5. Message Types (Future)
+
+Currently
+
+USER
+
+ASSISTANT
+
+Eventually you'll want
+
+USER
+
+ASSISTANT
+
+SYSTEM
+
+TOOL
+
+INTERRUPT
+
+RESUME
+
+You already have MessageRole.
+
+You may later introduce richer metadata for system/tool events.
+
+No schema change required if metadata is flexible.
+
+6. Soft Delete (Optional)
+
+Instead of
+
+DELETE conversations
+
+I'd eventually prefer
+
+deleted_at
+
+Enterprise systems usually don't physically delete conversations.
+
+Not required today.
+
+Low Priority
+7. Search
+
+Eventually
+
+search_messages()
+
+search_conversations()
+
+for admin tools.
+
+Definitely not now.
+
+8. Attachments
+
+If later users upload PDFs/images
+
+Message
+
+↓
+
+Attachment
+
+Different concern.
+
+9. Tool Execution History
+
+Today
+
+USER
+
+↓
+
+ASSISTANT
+
+Later
+
+USER
+
+↓
+
+TOOL
+
+↓
+
+ASSISTANT
+
+Useful for replay/debugging.
+
+
+----------------
+
+
+I would implement in this order
+Phase A — Persistence Hardening
+1. Trace IDs
+
+2. Sequence race condition
+
+Small schema change.
+
+Small repository change.
+
+Done.
+
+Phase B — Conversation Intelligence
+3. Summary
+
+4. Title
+
+5. Conversation Events
+Prompt Integration
+Everything related to understanding conversations.
+
+Phase C — Consumption
+6. Retrieval APIs
+
+7. Prompt Integration
+
+Used by
+
+LLM Planner
+Memory
+Reflection
+Phase D — Operations
+8. Admin
+
+9. Analytics
+
+Mostly internal tooling.
+
+My recommendation
+
+I would actually stop after Phase B before moving on to the LLM Planner.
+
+At that point, your conversation layer would provide:
+
+Reliable persistence
+Traceability
+Concurrency safety
+Summaries for long conversations
+Rich conversation events
+Titles for better UX
+
+That gives the LLM Planner exactly what it needs: a stable, queryable conversation history with summaries, while leaving admin tooling and analytics to be built later when you start focusing on evaluation and operational dashboards.
+
+
+---------------------------
+
+Future Expansion
+
+This architecture becomes very powerful because the same queue can handle future background AI jobs.
+
+conversation_title
+
+conversation_summary
+
+memory_extraction
+
+reflection
+
+evaluation
+
+knowledge_update
+
+feedback_analysis
+
+No architectural changes required.
+
+-----------------
+
+Advisor APIs
+──────────────────
+POST /advisor/chat
+POST /advisor/stream
+POST /advisor/resume
+
+Conversation APIs
+──────────────────
+GET /conversations
+GET /conversations/{id}
+GET /conversations/{id}/messages
+GET /conversations/{id}/summary
+
+Knowledge APIs
+──────────────────
+GET /documents/search
+GET /documents/{id}
+GET /documents/{id}/chunks
+GET /documents/{id}/download
+GET /schemes/{id}/documents
+
+Portfolio APIs
+──────────────────
+GET /portfolio
+GET /portfolio/analysis
+
+Customer APIs
+──────────────────
+GET /customer
+GET /customer/profile
+
+
+| Capability             | Recommended Model   | Why                                                       |
+| ---------------------- | ------------------- | --------------------------------------------------------- |
+| Final Advisor Response | Claude Sonnet 4     | Highest reasoning quality, customer-facing answers        |
+| Planner                | Claude Haiku 4      | Fast, inexpensive, excellent for structured JSON planning |
+| Conversation Title     | Claude Haiku 4      | Very small generation, low latency                        |
+| Conversation Summary   | Claude Haiku 4      | Good summarization quality at low cost                    |
+| Memory Extraction      | Claude Haiku 4      | Structured extraction tasks                               |
+| Reflection             | Claude Sonnet 4     | Needs deeper reasoning                                    |
+| Evaluation             | Claude Sonnet 4     | High-quality judgment                                     |
+| Tool Selection         | Claude Haiku 4      | Simple classification/planning                            |
+| Embeddings             | Titan Embed Text V2 | Standard Bedrock embedding model                          |
+
+
 

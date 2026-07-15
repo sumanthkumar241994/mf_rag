@@ -1,13 +1,22 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 class ConversationStatus(str, Enum):
     ACTIVE = 'ACTIVE'
     COMPLETED = 'COMPLETED'
     FAILED = 'FAILED'
     ABANDONED = 'ABANDONED'
+    ARCHIVED = 'ARCHIVED'
 
 class MessageRole(str, Enum):
-    USER = "USER"
-    ASSISTANT = "ASSISTANT"
-    SYSTEM = "SYSTEM"
-    TOOL = "TOOL"
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+class MessageType(StrEnum):
+    TEXT = "text"
+    TOOL = "tool"
+    INTERRUPT = "interrupt"
+    RESUME = "resume"
+    SUMMARY = "summary"
+    TITLE = "title"
+    EVENT = "event"

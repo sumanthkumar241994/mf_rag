@@ -31,12 +31,7 @@ class SQSEventPublisher(EventPublisher):
             raise ValueError(f"No SQS queue configured for priority '{event.priority}'")
         
         payload = self._serialize(event)
-
-        await asyncio.to_thread(
-            self.sqs_client.send_message,
-            QueueUrl=queue_url,
-            MessageBody=json.dumps(payload),
-            MessageAttributes={
+        message_attributes = {
                 "event_type": {
                     "DataType": "String",
                     "StringValue": event.event_type
@@ -44,12 +39,19 @@ class SQSEventPublisher(EventPublisher):
                 "priority": {
                     "DataType": "String",
                     "StringValue": event.priority
-                },
-                "correlation_id": {
-                    "DataType": "String",
-                    "StringValue": event.correlation_id
                 }
             }
+        if event.correlation_id:
+            message_attributes["correlation_id"] = {
+                    "DataType": "String",
+                    "StringValue": event.correlation_id,
+                }
+
+        await asyncio.to_thread(
+            self.sqs_client.send_message,
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(payload),
+            MessageAttributes=message_attributes
         )
 
 
