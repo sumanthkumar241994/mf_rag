@@ -9689,5 +9689,257 @@ GET /customer/profile
 | Tool Selection         | Claude Haiku 4      | Simple classification/planning                            |
 | Embeddings             | Titan Embed Text V2 | Standard Bedrock embedding model                          |
 
+------------------
+
+LLM Planner
+
+
+| Activity | Description                                           | Dependency |
+| -------- | ----------------------------------------------------- | ---------- |
+| ✅ 1      | Model Profiles                                        | None       |
+| ✅ 2      | Planner Domain Models                                 | 1          |
+| ✅ 3      | Planner Prompt Builder                                | 2          |
+| ✅ 4      | Planner Output Schema                                 | 3          |
+| ✅ 5      | Planner Parser                                        | 4          |
+| ✅ 6      | Planner Validator                                     | 5          |
+| ✅ 7      | Planner Service                                       | 6          |
+| ✅ 8      | Integrate with `PlannerNode` + deterministic fallback | 7          |
+| ✅ 9      | Langfuse tracing                                      | 8          |
+| ✅ 10     | Evaluation framework                                  | 8          |
+| ✅ 11     | Prompt optimization                                   | 10         |
+
+
+----------------
+
+Excellent. With **Model Profiles** done, the LLM infrastructure is ready. Now we can focus purely on the planner.
+
+I would implement the planner in **small, independently testable activities**.
+
+---
+
+# Planner Development Roadmap
+
+## ✅ Activity 1 - Models (Completed)
+
+* PlannerResponse
+* PlannerReason
+* PlannerValidationResult
+* PlannerError
+
+---
+
+# Activity 2 - Planner Prompt Builder (Next)
+
+This should be the first LLM-specific component.
+
+```
+planner/
+    prompt_builder.py
+    prompts.py
+```
+
+Output:
+
+```python
+LLMRequest(
+    system_prompt=...,
+    user_prompt=...
+)
+```
+
+No LLM call yet.
+
+---
+
+# Activity 3 - Planner Parser
+
+```
+planner/
+    parser.py
+```
+
+Input
+
+```json
+{
+  "intent": "...",
+  "confidence": 0.93,
+  "capabilities": [
+    {
+      "capability": "...",
+      "reason": "..."
+    }
+  ]
+}
+```
+
+Output
+
+```
+PlannerResponse
+```
+
+No validation.
+
+Only parsing.
+
+---
+
+# Activity 4 - Planner Validator
+
+```
+planner/
+    validator.py
+```
+
+Checks
+
+* valid intent
+* valid capability
+* duplicate capability
+* confidence
+* missing fields
+
+Returns
+
+```
+PlannerValidationResult
+```
+
+---
+
+# Activity 5 - Planner Service
+
+```
+PlannerService
+
+↓
+
+PromptBuilder
+
+↓
+
+LLMGateway
+
+↓
+
+Parser
+
+↓
+
+Validator
+```
+
+Returns
+
+```
+PlannerValidationResult
+```
+
+---
+
+# Activity 6 - Planner Node Integration
+
+```
+PlannerNode
+
+↓
+
+PlannerService
+
+↓
+
+Valid?
+
+↓
+
+Yes
+
+↓
+
+ToolMapper
+
+↓
+
+PlannerResult
+```
+
+Else
+
+```
+DeterministicPlanner
+```
+
+---
+
+# Activity 7 - Evaluation
+
+Dataset
+
+```
+Query
+
+Expected Intent
+
+Expected Capabilities
+```
+
+---
+
+# Activity 8 - Prompt Optimization
+
+Few-shot examples
+
+Improve accuracy
+
+---
+
+# Today's Focus
+
+I would start with the **Prompt Builder**, but before writing it, let's define **exactly what information we want the LLM to produce**.
+
+I recommend this JSON schema:
+
+```json
+{
+  "intent": "ANALYSIS",
+  "confidence": 0.94,
+  "capabilities": [
+    {
+      "capability": "PORTFOLIO",
+      "reason": "User requested portfolio analysis."
+    },
+    {
+      "capability": "SCHEME",
+      "reason": "User asked about a mutual fund."
+    }
+  ]
+}
+```
+
+This maps directly to your models:
+
+* `intent` → `PlannerResponse.intent`
+* `confidence` → `PlannerResponse.confidence`
+* `capabilities[].capability` → `PlannerResponse.capabilities`
+* `capabilities[].reason` → `PlannerReason`
+
+Notice there are **no tools** in the output. Your existing deterministic `ToolMapper` remains responsible for converting capabilities into tools, preserving the architecture you've already built.
+
+Once we agree on this schema, the next step is to design the **PlannerPromptBuilder**, including the system prompt, intent/capability lists, and the output format instructions. This prompt will be the foundation for the planner's accuracy.
+
+
+
+| Metric        | Meaning                                          |
+| ------------- | ------------------------------------------------ |
+| Groundedness  | Was the answer supported by retrieved documents? |
+| Relevance     | Did it answer the user's question?               |
+| Completeness  | Did it cover all requested aspects?              |
+| Hallucination | Did it invent facts?                             |
+| Helpfulness   | Was it useful?                                   |
+| Safety        | Was the response safe and compliant?             |
+| Tone          | Appropriate for your advisor?                    |
+
+
 
 

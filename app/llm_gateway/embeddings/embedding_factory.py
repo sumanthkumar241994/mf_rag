@@ -1,7 +1,9 @@
-from app.llm_gateway.embeddings.bedrock_embedding_client import BedrockEmbeddingClient
+
+from app.llm_gateway.embeddings.bedrock_titan_embedding import BedrockTitanEmbedding
+
 
 class EmbeddingFactory:
 
     @staticmethod
     def get_client():
-        return BedrockEmbeddingClient()
+        return BedrockTitanEmbedding()

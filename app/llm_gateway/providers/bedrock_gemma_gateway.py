@@ -23,17 +23,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 class GemmaProvider(LLMProvider):
-    MODEL_ID = settings.BEDROCK_GEMMA_MODEL_ID
 
     def __init__(self):
         self.bedrock_client = AWS().bedrock_runtime
 
     @trace_step("llm_runtime_generate")
-    async def generate(self, request: LLMRequest) -> LLMResponse:
+    async def generate(self, request: LLMRequest, model_id: str) -> LLMResponse:
         body = self._build_request_body(request)
 
         start_time = time.perf_counter()
-        response = await asyncio.to_thread(self.bedrock_client.invoke_model,modelId=self.MODEL_ID, body=json.dumps(body))
+        response = await asyncio.to_thread(self.bedrock_client.invoke_model, modelId=model_id, body=json.dumps(body))
 
         latency_ms = round((time.perf_counter() - start_time)*1000)
 
@@ -51,7 +50,7 @@ class GemmaProvider(LLMProvider):
                 total_tokens= usage['total_tokens']
             ),
             metrics = LLMMetrics(
-                model=self.MODEL_ID,
+                model=model_id,
                 latency_ms=latency_ms,
                 finish_reason=choice.get('finish_reason')
             )
@@ -170,12 +169,12 @@ class GemmaProvider(LLMProvider):
     #             )
 
     @trace_step("llm_runtime_stream")
-    async def astream(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
+    async def astream(self, request: LLMRequest, model_id: str) -> AsyncIterator[LLMChunk]:
         body = self._build_request_body(request)
 
         response = await asyncio.to_thread(
             self.bedrock_client.invoke_model_with_response_stream,
-            modelId=self.MODEL_ID,
+            modelId=model_id,
             body=json.dumps(body)
         )
 
@@ -218,7 +217,7 @@ class GemmaProvider(LLMProvider):
                 )
 
                 metrics = LLMMetrics(
-                    model = self.MODEL_ID,
+                    model = model_id,
                     latency_ms=invocation_metrics['invocationLatency'],
                     first_token_latency_ms=invocation_metrics['firstByteLatency'],
                     invocation_latency_ms=invocation_metrics['invocationLatency'],
