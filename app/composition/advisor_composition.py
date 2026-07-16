@@ -6,6 +6,7 @@ from app.composition.business.document_composition import DocumentComposition
 from app.composition.business.goal_composition import GoalComposition
 from app.composition.business.portfolio_composition import PortfolioComposition
 from app.composition.business.scheme_composition import SchemeComposition
+from app.composition.guardrail_composition import GuardRailComposition
 from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
 from app.composition.planner.hybrid_planner_composition import HybridPlannerComposition
@@ -13,6 +14,7 @@ from app.composition.prompt.advisor_prompt_composition import AdvisorPromptCompo
 from app.composition.tool_composition import ToolComposition
 from app.composition.workflow_composition import WorkflowComposition
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
+from app.workflows.advisor.nodes.guardrail_node import GuardRailNode
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
 from app.workflows.advisor.nodes.prompt_builder_node import PromptBuilderNode
@@ -90,6 +92,10 @@ class AdvisorComposition:
 
         self.workflow_node = WorkflowNode(workflow.workflow_service)
 
+        self.guardrails = GuardRailComposition(
+                llm_gateway=llm.gateway,
+            )
+
         self.workflow = AdvisorWorkflow(
             planner_node=self.planner_node,
             tool_exectution_node=self.tool_execution_node,
@@ -97,6 +103,7 @@ class AdvisorComposition:
             prompt_builder_node=self.prompt_builder_node,
             llm_node=self.llm_node,
             workflow_node=self.workflow_node,
+            guardrail_node = GuardRailNode(guardrail_service=self.guardrails.guardrail_service),
             checkpointer=checkpointer
         )
 

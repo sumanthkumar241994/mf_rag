@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class ModelProfile(StrEnum):
+    GUARDRAIL = "guardrail"
     CHAT = "chat"
     PLANNER = "planner"
     TITLE = "title"

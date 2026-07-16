@@ -9940,6 +9940,412 @@ Once we agree on this schema, the next step is to design the **PlannerPromptBuil
 | Safety        | Was the response safe and compliant?             |
 | Tone          | Appropriate for your advisor?                    |
 
+------------------------
+
+                    User
+                      │
+                      ▼
+         ┌────────────────────────┐
+         │ Layer 1: Deterministic │
+         └────────────────────────┘
+                      │
+                      ▼
+            Passed?
+          Yes      No
+           │        │
+           ▼        ▼
+  ┌────────────────────────┐   Reject
+  │ Layer 2: LLM Guard     │
+  └────────────────────────┘
+           │
+           ▼
+      Passed?
+     Yes     No
+      │       │
+      ▼       ▼
+  Planner   Reject
+      │
+      ▼
+ Tool Execution
+      │
+      ▼
+ Compliance
+      │
+      ▼
+ Streaming Response
+
+ -----------
 
 
+                 User
+                  │
+                  ▼
+          GuardRailNode
+                  │
+        Allowed?
+        │        │
+       Yes       No
+        │         │
+        ▼         ▼
+    Planner     LLMResponse
+        │         │
+        ▼         ▼
+      Tools      END
+        │
+        ▼
+     Streaming
+
+
+-------------------
+
+Yes. After seeing your architecture and the RBI/SEBI documents, I think we should treat **Compliance as an enterprise subsystem**, not just a decorator.
+
+This is the roadmap I would follow.
+
+---
+
+# Phase 1 — Prompt Compliance (Pre-LLM) ⭐⭐⭐⭐⭐
+
+**Goal**
+
+Ensure only valid, compliant prompts reach the LLM.
+
+```text
+Context Builder
+      │
+      ▼
+Prompt Builder
+      │
+      ▼
+Prompt Compliance
+      │
+      ▼
+LLM
+```
+
+### Validators
+
+```
+mandatory_instruction_validator
+```
+
+* Required system instructions exist
+* "Do not hallucinate"
+* "Use retrieved context"
+
+```
+context_validator
+```
+
+* Context present when required
+* No empty prompt
+
+```
+prompt_size_validator
+```
+
+* Token limit
+* Character limit
+
+```
+pii_validator
+```
+
+* No PAN
+* No Aadhaar
+* No Bank Account
+* No internal secrets
+
+```
+policy_validator
+```
+
+Checks
+
+* No prohibited instructions
+* No prompt leakage
+* No internal metadata
+
+---
+
+Folder
+
+```
+compliance/
+
+    prompt/
+
+        composition.py
+
+        service.py
+
+        validators/
+
+        models/
+```
+
+---
+
+# Phase 2 — Response Compliance ⭐⭐⭐⭐⭐
+
+This happens before streaming the response.
+
+```text
+LLM
+
+↓
+
+Response Compliance
+
+↓
+
+Stream
+```
+
+Decorators
+
+```
+DisclaimerDecorator
+
+SEBIDecorator
+
+RBILinkDecorator
+
+SuitabilityDecorator
+```
+
+Examples
+
+Recommendation
+
+↓
+
+Append disclaimer
+
+KYC
+
+↓
+
+Append RBI reference
+
+Returns
+
+↓
+
+Append "Past performance..."
+
+Folder
+
+```
+compliance/
+
+    response/
+
+        composition.py
+
+        service.py
+
+        decorators/
+
+        models/
+```
+
+---
+
+# Phase 3 — Citations ⭐⭐⭐⭐
+
+Independent module.
+
+Not compliance.
+
+```
+ContextBuilder
+
+↓
+
+source_map
+
+↓
+
+CitationBuilder
+
+↓
+
+Response
+```
+
+Uses
+
+```
+LLMContext.source_map
+```
+
+Produces
+
+```
+Sources
+
+SID
+
+Factsheet
+
+Annual Report
+```
+
+---
+
+# Phase 4 — Policy Repository ⭐⭐⭐⭐⭐
+
+This is where RBI and SEBI documents become code.
+
+```
+policies/
+
+    prompt_policy.yaml
+
+    response_policy.yaml
+
+    prohibited_phrases.yaml
+
+    regulatory_links.yaml
+```
+
+Loaded once.
+
+Never queried through the LLM.
+
+---
+
+# Phase 5 — Evaluation ⭐⭐⭐⭐⭐
+
+Offline
+
+```
+RAGAS
+
+Faithfulness
+
+Answer Correctness
+
+Groundedness
+
+Hallucination
+
+Latency
+
+Tool Accuracy
+```
+
+---
+
+# Phase 6 — Reflection ⭐⭐⭐⭐
+
+After response
+
+```
+Was answer good?
+
+↓
+
+Should retrieval improve?
+
+↓
+
+Store learning
+```
+
+---
+
+# Phase 7 — Human Review ⭐⭐⭐
+
+High-risk requests
+
+↓
+
+Interrupt workflow
+
+↓
+
+Human Approval
+
+↓
+
+Resume
+
+---
+
+# Overall Enterprise Flow
+
+```
+User
+ │
+ ▼
+Guard Rails
+ │
+ ▼
+Planner
+ │
+ ▼
+Tools
+ │
+ ▼
+Context Builder
+ │
+ ▼
+Prompt Builder
+ │
+ ▼
+Prompt Compliance
+ │
+ ▼
+LLM
+ │
+ ▼
+Response Compliance
+ │
+ ▼
+Citation Builder
+ │
+ ▼
+Streaming
+ │
+ ▼
+Evaluation
+ │
+ ▼
+Reflection
+```
+
+---
+
+# What we build now
+
+I would implement the following in order:
+
+### Sprint 1 (Current)
+
+* ✅ Prompt Compliance
+* ✅ Response Compliance
+* ✅ Policy Repository
+
+### Sprint 2
+
+* ✅ Citations
+
+### Sprint 3
+
+* ✅ Memory
+
+### Sprint 4
+
+* ✅ Evaluation Framework (RAGAS + enterprise metrics)
+
+### Sprint 5
+
+* ✅ Reflection
+* ✅ Human-in-the-loop
+
+---
+
+This sequence gives you a production-ready advisor early, while leaving observability, evaluation, and continuous improvement for the final stages. By the time you reach interviews, you'll be able to explain not just how the system answers questions, but how it enforces policy, protects users, and measures its own quality.
 
