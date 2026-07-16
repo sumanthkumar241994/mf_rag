@@ -19,6 +19,7 @@ from app.composition.business.portfolio_composition import PortfolioComposition
 from app.composition.business.scheme_composition import SchemeComposition
 from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
+from app.composition.planner.hybrid_planner_composition import HybridPlannerComposition
 from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
 from app.composition.tool_composition import ToolComposition
 from app.composition.workflow_composition import WorkflowComposition
@@ -37,7 +38,6 @@ def get_advisor_agent(
     if _advisor is None:
         workflow = WorkflowComposition()
         portfolio = PortfolioComposition(portfolio_gateway=portfolio_gateway, workflow_service=workflow.workflow_service)
-        planner = DeterministicPlannerComposition()
         scheme = SchemeComposition(scheme_gateway=scheme_gateway, workflow_service=workflow.workflow_service)
         customer = CustomerComposition(customer_gateway=customer_gateway, workflow_service=workflow.workflow_service)
         goal_context = GoalContextProvider(customer_service=customer.customer_service, portfolio_service=portfolio.portofio_service)
@@ -46,6 +46,7 @@ def get_advisor_agent(
         tools = ToolComposition()
         prompt = AdvisorPromptComposition()
         llm = LLMComposition()
+        planner = HybridPlannerComposition(llm.gateway)
 
         advisor = AdvisorComposition(
             portfolio=portfolio,

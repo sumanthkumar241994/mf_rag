@@ -5,6 +5,9 @@ from app.dtos.llm.llm_request import LLMRequest
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.llm.llm_stream_response import LLMStreamResponse
 
+from app.llm_gateway.enums.model_profile import ModelProfile
+from app.llm_gateway.enums.provider import Provider
+from app.llm_gateway.model_profiles import MODEL_PROFILES
 import app.observability.langfuse_helper as LangfuseHelper
 
 from app.enums.stream_event_type import StreamEventType
@@ -16,12 +19,18 @@ from app.events.publishers.sqs_publisher import SQSEventPublisher
 from app.llm_gateway.metrics.cost_calculator import CostCalculator
 
 class LLMGateway:
-    def __init__(self, provider: LLMProvider, sqs_publisher: SQSEventPublisher):
-        self.provider = provider
+    def __init__(
+        self, 
+        providers: dict[Provider,LLMProvider], 
+        sqs_publisher: SQSEventPublisher
+    ):
+        self.providers = providers
         self.sqs_publisher = sqs_publisher
     
-    async def generate(self, request: LLMRequest) -> LLMResponse:
-        response = await self.provider.generate(request)
+    async def generate(self, request: LLMRequest, model_profile: ModelProfile = ModelProfile.CHAT) -> LLMResponse:
+        model_config = MODEL_PROFILES[model_profile]
+        provider = self.providers[model_config.provider]
+        response = await provider.generate(request, model_id=model_config.model_id)
 
         response.metrics.cost = CostCalculator.calculate(
             model=response.metrics.model,
@@ -71,8 +80,15 @@ class LLMGateway:
 
     #         yield event
 
-    async def astream(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
-        async for chunk in self.provider.astream(request):
+    async def astream(
+        self, 
+        request: LLMRequest, 
+        model_profile: ModelProfile= ModelProfile.CHAT
+    ) -> AsyncIterator[LLMChunk]:
+
+        model_config = MODEL_PROFILES[model_profile]
+        provider = self.providers[model_config.provider]
+        async for chunk in provider.astream(request, model_id=model_config.model_id):
             if chunk.response is not None:
                 response = chunk.response
 

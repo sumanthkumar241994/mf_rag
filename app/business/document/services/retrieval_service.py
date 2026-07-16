@@ -1,7 +1,7 @@
 from app.business.document.models.retrieved_chunk import RetrievedChunk
+from app.llm_gateway.embeddings.bedrock_titan_embedding import BedrockTitanEmbedding
 from app.models import document
 from app.repositories import DocumentRepository, DocumentChunkRepository
-from app.llm_gateway.embeddings.bedrock_embedding_client import BedrockEmbeddingClient
 
 from app.observability.tracing import trace_step
 
@@ -9,7 +9,7 @@ from app.observability.tracing import trace_step
 class RetrievalService:
     def __init__(
         self,
-        embedding_client: BedrockEmbeddingClient,
+        embedding_client: BedrockTitanEmbedding,
         chunk_repository: DocumentChunkRepository
     ):
         self.embedding_client = embedding_client

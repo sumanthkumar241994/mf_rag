@@ -2,11 +2,12 @@ import json
 import asyncio
 
 from app.core.config import settings
+from app.core.config.aws import AWS
 
-class BedrockEmbeddingClient:
+class BedrockTitanEmbedding:
 
-    def __init__(self, bedrock_client):
-        self.client = bedrock_client
+    def __init__(self):
+        self.client = AWS().bedrock_runtime
 
     async def generate(
         self,
@@ -17,7 +18,7 @@ class BedrockEmbeddingClient:
         }
 
         response = await asyncio.to_thread(self.client.invoke_model,
-            modelId=settings.BEDROCK_EMBEDDING_MODEL,
+            modelId=settings.BEDROCK_TITAN_EMBEDDING_MODEL_ID,
             body=json.dumps(payload)
         )
 
