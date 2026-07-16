@@ -71,6 +71,7 @@ from app.enums.stream_event_type import StreamEventType
 from app.enums.workflow_decision import WorkflowDecision
 from app.mapper.advisor_state_mapper import AdvisorStateMapper
 from app.workflows.advisor.advisor_state import AdvisorState
+from app.workflows.advisor.nodes.guardrail_node import GuardRailNode
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
 from app.workflows.advisor.nodes.prompt_builder_node import PromptBuilderNode
@@ -88,6 +89,7 @@ class AdvisorWorkflow:
 
     def __init__(
         self,
+        guardrail_node: GuardRailNode,
         planner_node: PlannerNode,
         tool_exectution_node: ToolExecutionNode,
         workflow_node: WorkflowNode,
@@ -96,6 +98,7 @@ class AdvisorWorkflow:
         llm_node: LLMNode,
         checkpointer: AsyncPostgresSaver
     ):
+        self._guardrail_node = guardrail_node
         self._planner_node = planner_node
         self._tool_execution_node = tool_exectution_node
         self._workflow_node = workflow_node
@@ -110,6 +113,7 @@ class AdvisorWorkflow:
 
         workflow = StateGraph(AdvisorState)
 
+        workflow.add_node("guardrails", self._guardrail_node)
         workflow.add_node("planner", self._planner_node)
         workflow.add_node("tool_execution", self._tool_execution_node)
         workflow.add_node("workflow", self._workflow_node)
@@ -117,7 +121,15 @@ class AdvisorWorkflow:
         workflow.add_node("tool_failure", self._tool_failure_node)
         workflow.add_node("llm", self._llm_node)
 
-        workflow.add_edge(START, "planner")
+        workflow.add_edge(START, "guardrails")
+        workflow.add_conditional_edges(
+            "guardrails",
+            self._route_after_guardrails,
+            {
+                WorkflowDecision.CONTINUE.value: "planner",
+                WorkflowDecision.END.value: END,
+            },
+        )
         workflow.add_edge("planner", "tool_execution")
         workflow.add_conditional_edges(
             "tool_execution", 
@@ -153,10 +165,17 @@ class AdvisorWorkflow:
 
         return WorkflowDecision.CONTINUE.value
 
+    
+    def _route_after_guardrails(
+    state: AdvisorState,
+    ):
+        if state.guardrail_result.allowed:
+            return WorkflowDecision.CONTINUE.value
+
+        return WorkflowDecision.END.value
+
 
     async def invoke(self, state: AdvisorState) -> AdvisorState:
-        print(WorkflowConfig.config(state))
-
         result = await self._graph.ainvoke(
             state,
             config=WorkflowConfig.config(state)
@@ -229,11 +248,14 @@ class AdvisorWorkflow:
         state: AdvisorState,
     ) -> AsyncIterator[AgentStreamEvent]:
 
+
+
         async for mode, chunk in self._graph.astream(
             state,
             config=WorkflowConfig.config(state),
             stream_mode=["updates", "custom"],
         ):
+
 
             # print("=" * 80)
             # print(mode)
@@ -242,6 +264,7 @@ class AdvisorWorkflow:
 
             # if False:
             #     yield 
+
             # ----------------------------------------------------
             # Custom stream emitted from LLMNode
             # ----------------------------------------------------
@@ -397,10 +420,21 @@ class AdvisorWorkflow:
 
             return
 
+
         node_name = next(iter(chunk))
         node_state = chunk[node_name]
 
-        if node_name == "planner":
+        if node_name == "guardrails":
+            llm_response = node_state.get("llm_response")
+            if llm_response:
+                yield AgentStreamEvent(
+                    type=StreamEventType.COMPLETED.value,
+                    response=llm_response,
+                )
+
+                return
+
+        elif node_name == "planner":
 
             planner = node_state["planner_result"]
 

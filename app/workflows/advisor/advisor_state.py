@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.business.advisor.enums.agent_type import AgentType
 from app.business.advisor.enums.intent import Intent
 from app.business.advisor.enums.tool_type import ToolType
@@ -41,6 +42,8 @@ class AdvisorState:
     history: list[CacheMessage] = field(default_factory=list)
 
     trace_id: str | None = None
+
+    guardrail_result: GuardRailResult | None = None
 
     #planner
     planner_result : PlannerResult | None = None
