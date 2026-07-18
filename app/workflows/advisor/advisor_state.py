@@ -3,22 +3,19 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
-from app.business.advisor.enums.agent_type import AgentType
-from app.business.advisor.enums.intent import Intent
-from app.business.advisor.enums.tool_type import ToolType
 from app.business.advisor.models.advisor_error import AdvisorError
 from app.business.advisor.models.planner_result import PlannerResult
 from app.business.advisor.models.prompt import Prompt
-from app.business.approval.models.approval_context import ApprovalContext
 from app.business.customer.models.customer import Customer
 from app.business.document.models.llm_context import LLMContext
 from app.business.document.models.retrieval_response import SourceResponse
 from app.business.goal.mapper.goal_mapper import GoalMapper
 from app.business.goal.models.goal_analysis import GoalAnalysis
-from app.business.portfolio.analysis.models import insight
 from app.business.portfolio.analysis.models.portfolio_analysis import PortfolioAnalysis
 from app.business.scheme.models.scheme_details import SchemeDetails
 from app.business.scheme.models.scheme_query import SchemeQuery
+from app.compliance.prompt.models.prompt_compliance_result import PromptComplianceResult
+from app.compliance.response.streaming.stream_state import StreamState
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.request_context import RequestContext
 from app.dtos.workflow.tool_execution_result import ToolExecutionResult
@@ -44,6 +41,8 @@ class AdvisorState:
     trace_id: str | None = None
 
     guardrail_result: GuardRailResult | None = None
+    
+    prompt_compliance_result: PromptComplianceResult | None = None
 
     #planner
     planner_result : PlannerResult | None = None

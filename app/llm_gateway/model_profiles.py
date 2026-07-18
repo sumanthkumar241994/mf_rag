@@ -7,10 +7,10 @@ from app.llm_gateway.models.model_config import ModelConfig
 
 
 MODEL_PROFILES = {
-    # ModelProfile.CHAT: ModelConfig(
-    #     provider=Provider.ANTHROPIC,
-    #     model_id=settings.BEDROCK_CLAUDE_SONNET_MODEL_ID,
-    # ),
+    ModelProfile.GUARDRAIL: ModelConfig(
+        provider=Provider.ANTHROPIC,
+        model_id=settings.BEDROCK_CLAUDE_SONNET_MODEL_ID,
+    ),
     ModelProfile.CHAT: ModelConfig(
         provider=Provider.GEMMA,
         model_id=settings.BEDROCK_GEMMA_MODEL_ID,
@@ -19,10 +19,10 @@ MODEL_PROFILES = {
         provider=Provider.GEMMA,
         model_id=settings.BEDROCK_GEMMA_MODEL_ID,
     ),
-    ModelProfile.GUARDRAIL: ModelConfig(
-        provider=Provider.GEMMA,
-        model_id=settings.BEDROCK_GEMMA_MODEL_ID,
-    ),
+    # ModelProfile.GUARDRAIL: ModelConfig(
+    #     provider=Provider.GEMMA,
+    #     model_id=settings.BEDROCK_GEMMA_MODEL_ID,
+    # ),
     # ModelProfile.PLANNER: ModelConfig(
     #     provider=Provider.ANTHROPIC,
     #     model_id=settings.BEDROCK_CLAUDE_HAIKU_MODEL_ID,

@@ -10349,3 +10349,1292 @@ I would implement the following in order:
 
 This sequence gives you a production-ready advisor early, while leaving observability, evaluation, and continuous improvement for the final stages. By the time you reach interviews, you'll be able to explain not just how the system answers questions, but how it enforces policy, protects users, and measures its own quality.
 
+--------------
+
+This is a great question. For a **Principal Engineer / Staff Engineer** interview, **cost is only one dimension**. When you propose an enterprise GenAI system, interviewers often expect you to think in terms of **capacity planning, operational planning, reliability, and business metrics**.
+
+Here's the checklist I'd prepare for your Mutual Fund Advisor project.
+
+---
+
+# 1. Cost Estimation ✅
+
+You've already identified this.
+
+Estimate:
+
+* LLM cost
+* Embedding cost
+* Vector DB storage
+* ECS/Fargate
+* RDS
+* Redis
+* S3
+* CloudWatch/Langfuse
+* Network
+
+Example:
+
+```text
+Monthly LLM Cost
+Monthly Infrastructure Cost
+Total Monthly Cost
+Cost per Customer
+Cost per Request
+```
+
+---
+
+# 2. Capacity Planning
+
+Very common interview question.
+
+Example:
+
+```text
+10,000 MAU
+
+↓
+
+200,000 requests/month
+
+↓
+
+7,000 requests/day
+
+↓
+
+300 requests/hour
+
+↓
+
+5 requests/minute
+```
+
+Peak traffic
+
+Usually
+
+```text
+Average × 5
+```
+
+So
+
+```text
+25 RPM
+```
+
+Now interviewer asks
+
+> How many ECS tasks?
+
+You already know.
+
+---
+
+# 3. Throughput
+
+Calculate
+
+```text
+Concurrent Users
+
+Peak Requests
+
+LLM Calls/sec
+
+Tool Calls/sec
+```
+
+Example
+
+```text
+Peak
+
+100 concurrent users
+
+↓
+
+Planner
+
+↓
+
+Customer Tool
+
+↓
+
+Portfolio Tool
+
+↓
+
+LLM
+```
+
+Can your workers handle it?
+
+---
+
+# 4. Latency Budget
+
+This impresses interviewers.
+
+Example
+
+```text
+API Gateway             50 ms
+
+Planner                 100 ms
+
+Tool Execution          300 ms
+
+Retrieval              500 ms
+
+Prompt Builder          50 ms
+
+LLM                   2200 ms
+
+Streaming             Immediate
+
+Total
+
+≈3 sec
+```
+
+Now every component has SLA.
+
+---
+
+# 5. Availability
+
+Example
+
+```text
+99.9%
+```
+
+Downtime
+
+```text
+43 min/month
+```
+
+Explain
+
+* Multi AZ RDS
+* ECS Auto Scaling
+* Redis HA
+
+---
+
+# 6. Scaling Strategy
+
+Interviewer asks
+
+> What if users become 100,000?
+
+Answer
+
+```text
+Horizontal Scaling
+
+↓
+
+More ECS Tasks
+
+↓
+
+Aurora Read Replica
+
+↓
+
+Redis Cluster
+
+↓
+
+ALB
+
+↓
+
+Bedrock
+```
+
+No code changes.
+
+---
+
+# 7. Token Budget
+
+We've already discussed.
+
+Instead of
+
+```text
+Huge prompt
+```
+
+Use
+
+```text
+System
+
+Summary
+
+History
+
+Context
+
+Tool Output
+
+User
+```
+
+Budget each.
+
+---
+
+# 8. Model Strategy
+
+Explain
+
+```text
+Planner
+
+↓
+
+Haiku
+
+Simple Questions
+
+↓
+
+Haiku
+
+Portfolio Analysis
+
+↓
+
+Sonnet
+
+Recommendation
+
+↓
+
+Sonnet
+```
+
+Reduces cost.
+
+---
+
+# 9. Cache Strategy
+
+Huge interview topic.
+
+Examples
+
+```text
+Redis
+
+↓
+
+Customer
+
+Portfolio
+
+Goals
+
+Scheme
+
+Conversation
+
+Prompt Templates
+
+Policies
+```
+
+Also
+
+Semantic Cache
+
+Future.
+
+---
+
+# 10. Database Estimation
+
+Estimate
+
+Conversations
+
+Example
+
+```text
+10,000 users
+
+20 chats
+
+↓
+
+200,000 conversations
+```
+
+Messages
+
+```text
+8 messages/chat
+
+↓
+
+1.6 Million messages/month
+```
+
+Storage
+
+Easy to estimate.
+
+---
+
+# 11. S3 Storage
+
+Estimate
+
+Suppose
+
+```text
+5000 SID
+
+Annual Reports
+
+KIM
+
+Fact Sheets
+```
+
+Average
+
+```text
+4 MB
+```
+
+Storage
+
+```text
+20 GB
+```
+
+Easy.
+
+---
+
+# 12. Vector Storage
+
+Estimate
+
+Suppose
+
+```text
+150,000 chunks
+
+1024 embedding
+
+float32
+```
+
+Storage
+
+Approximately
+
+```text
+600–800 MB
+```
+
+Very common interview discussion.
+
+---
+
+# 13. Monitoring
+
+Need
+
+```text
+Latency
+
+Errors
+
+Token Usage
+
+Cost
+
+Cache Hit
+
+Retrieval Precision
+
+LLM Success Rate
+
+Workflow Success Rate
+
+Streaming Time
+```
+
+---
+
+# 14. Reliability
+
+Need
+
+Retries
+
+Circuit Breaker
+
+Timeout
+
+Fallback
+
+Dead Letter Queue
+
+Graceful Degradation
+
+---
+
+# 15. Security
+
+Especially for Mutual Funds.
+
+Need
+
+PII Masking
+
+Encryption
+
+IAM Roles
+
+Secrets Manager
+
+Audit Logs
+
+Compliance
+
+---
+
+# 16. Business KPIs
+
+Don't forget these.
+
+```text
+Answer Accuracy
+
+Tool Success Rate
+
+Retrieval Recall
+
+Hallucination Rate
+
+Customer Satisfaction
+
+Cost/Conversation
+
+Average Response Time
+```
+
+---
+
+# 17. AI Evaluation
+
+Already in your roadmap.
+
+Need
+
+Golden Dataset
+
+Offline Evaluation
+
+Online Evaluation
+
+A/B Testing
+
+Human Feedback
+
+Regression Testing
+
+---
+
+# 18. Disaster Recovery
+
+Need
+
+Backup
+
+RDS Snapshot
+
+S3 Versioning
+
+Cross Region
+
+Recovery Time Objective (RTO)
+
+Recovery Point Objective (RPO)
+
+---
+
+# 19. Release Strategy
+
+Need
+
+Blue/Green
+
+Canary
+
+Feature Flags
+
+Model Rollback
+
+Prompt Versioning
+
+---
+
+# 20. Operational Runbook
+
+Interviewers love this.
+
+Include
+
+```text
+How to onboard a new model
+
+How to rollback prompts
+
+How to rotate API keys
+
+How to re-index documents
+
+How to recover failed ingestion
+
+How to replay failed workflows
+```
+
+---
+
+# For your project
+
+Since you're building an **enterprise Mutual Fund Advisor**, I would prepare a small **Architecture Readiness Document** with the following sections:
+
+1. **Functional Architecture** – Components, workflows, agents, and tools.
+2. **Non-Functional Requirements (NFRs)** – Latency, availability, scalability, security, observability.
+3. **Capacity & Cost Planning** – User assumptions, request volumes, token budgets, infrastructure sizing, and monthly cost estimates.
+4. **Reliability & Operations** – Retry strategies, circuit breakers, disaster recovery, deployment strategy, monitoring, and runbooks.
+5. **AI-Specific Governance** – Prompt budgets, model routing, compliance, evaluation framework, hallucination prevention, and cost monitoring.
+
+Having this document ready means you'll have answers to most architecture and operational questions that interviewers typically ask, and it also serves as a strong design artifact for the project itself.
+
+----------------------------
+
+Yes, that's actually the right time to do it.
+
+I wouldn't spend time on detailed capacity, cost, or performance estimation until the RAG pipeline is complete and you've integrated RAGAS. At that point you'll have **real metrics** instead of assumptions.
+
+## Recommended order
+
+### Phase 1 (Current)
+
+* ✅ FastAPI architecture
+* ✅ Planner
+* ✅ Tool execution
+* ✅ Workflow
+* ✅ Prompt Builder
+* ✅ Prompt Compliance
+* ⏳ LLM
+* ⏳ Response Compliance
+
+### Phase 2
+
+* Conversation persistence
+* Memory
+* Reflection
+* Feedback
+* Human-in-the-loop
+
+### Phase 3
+
+* RAGAS Evaluation
+* Golden Dataset
+* Benchmarking
+
+### Phase 4 (Architecture Readiness)
+
+This is when I'd prepare the engineering metrics document.
+
+It should include:
+
+#### AI Metrics
+
+* RAGAS Answer Relevancy
+* Faithfulness
+* Context Precision
+* Context Recall
+* Hallucination Rate
+
+#### Performance Metrics
+
+* Average latency
+* P95 latency
+* P99 latency
+* Tool execution time
+* Retrieval time
+* LLM latency
+
+#### Cost Analysis
+
+* Average input tokens
+* Average output tokens
+* Token distribution by feature
+* Cost per request
+* Cost per conversation
+* Monthly cost estimation
+* Cost optimization opportunities
+
+#### Capacity Planning
+
+* MAU assumptions
+* Requests/month
+* Peak QPS
+* Concurrent users
+* ECS sizing
+* RDS sizing
+* Redis sizing
+
+#### Infrastructure
+
+* Storage estimation
+* Vector DB size
+* S3 growth
+* Backup strategy
+
+#### Operations
+
+* SLA/SLO
+* Availability
+* Monitoring
+* Alerting
+* Disaster Recovery
+
+---
+
+## Why this order?
+
+After integrating RAGAS, you'll have actual numbers like:
+
+```text
+Average retrieved chunks        : 6.2
+Average context tokens          : 980
+Average prompt tokens           : 1,740
+Average completion tokens       : 420
+Average latency                 : 2.4 s
+Average RAGAS faithfulness      : 0.92
+Average context precision       : 0.88
+```
+
+With these, your cost calculation becomes evidence-based instead of hypothetical.
+
+For example:
+
+```
+Average input tokens    = 1,740
+Average output tokens   = 420
+Requests/month          = 200,000
+
+→ Monthly Sonnet Cost = $X
+→ Cost per conversation = $Y
+→ Cost per active user = $Z
+```
+
+Those numbers are much more convincing in an interview because they're derived from measurements of your own system.
+
+So I'd keep moving forward with the implementation now, and once RAGAS is integrated, dedicate a final phase to **Performance, Cost, Capacity, and Architecture Readiness**. That will also give you excellent material for architecture reviews and interview discussions.
+
+
+------------------------
+
+
+Given the architecture we've designed, I'd implement them in this order because each builds on the previous one.
+
+```
+response/
+├── validators/
+│   ├── base.py
+│   ├── policy_validator.py
+│   ├── pii_validator.py
+│   ├── disclaimer_validator.py
+│   └── citation_validator.py
+```
+
+---
+
+# 1. PolicyValidator
+
+**Responsibility**
+
+* Check prohibited phrases
+* REPLACE or REJECT according to policy
+* Add `ComplianceFinding`
+
+```python
+class PolicyValidator(ResponseComplianceValidator):
+
+    def __init__(self, repository: PolicyRepository):
+        ...
+
+    async def validate(
+        self,
+        request: ResponseComplianceRequest,
+    ) -> ResponseComplianceResult:
+        ...
+```
+
+Algorithm
+
+```
+response = request.response
+
+for phrase in prohibited_phrases:
+
+    if no match:
+        continue
+
+    if action == REPLACE:
+        response = regex.sub(replacement)
+
+        findings.append(...)
+
+    elif action == REJECT:
+        return rejected
+
+return allowed(response)
+```
+
+This validator is the only one that can both **rewrite** and **reject**.
+
+---
+
+# 2. PIIValidator
+
+**Responsibility**
+
+Reuse your existing masking logic.
+
+```
+response
+    ↓
+PII Detector
+    ↓
+mask PII
+    ↓
+return sanitized response
+```
+
+Never rejects.
+
+Skeleton:
+
+```python
+class PIIValidator(ResponseComplianceValidator):
+
+    async def validate(
+        self,
+        request: ResponseComplianceRequest,
+    ) -> ResponseComplianceResult:
+        ...
+```
+
+---
+
+# 3. DisclaimerValidator
+
+Responsibilities
+
+* Look at `request.intent`
+* Read disclaimer policy
+* Append disclaimer only when required
+
+Pseudo:
+
+```
+if disclaimer disabled:
+    PASS
+
+if intent not eligible:
+    PASS
+
+if already exists:
+    PASS
+
+append disclaimer
+```
+
+Never rejects.
+
+---
+
+# 4. CitationValidator
+
+Uses
+
+```
+request.context
+```
+
+Business rule:
+
+```
+if context is None:
+    PASS
+
+if chunk_count == 0:
+    PASS
+
+if citations missing:
+    reject
+
+return pass
+```
+
+Later you'll validate:
+
+* citation syntax
+* source ids
+* source map
+
+---
+
+# Result behavior
+
+Each validator returns a full `ResponseComplianceResult`.
+
+| Validator  | Modify | Reject | Findings |
+| ---------- | ------ | ------ | -------- |
+| Policy     | ✅      | ✅      | ✅        |
+| PII        | ✅      | ❌      | ✅        |
+| Disclaimer | ✅      | ❌      | Optional |
+| Citation   | ❌      | ✅      | ✅        |
+
+---
+
+## Execution flow
+
+```
+LLM Response
+      │
+      ▼
+PolicyValidator
+      │
+      ▼
+PIIValidator
+      │
+      ▼
+DisclaimerValidator
+      │
+      ▼
+CitationValidator
+      │
+      ▼
+Final Response
+```
+
+This ordering is important:
+
+1. **Policy** fixes or blocks prohibited language first.
+2. **PII** masks any sensitive information in the updated response.
+3. **Disclaimer** appends regulatory text to the final content.
+4. **Citation** validates that the finished response still satisfies citation requirements.
+
+---------------------------
+
+                chunk
+                  │
+                  ▼
+      working = carry_over + chunk
+                  │
+                  ▼
+      ResponseComplianceExecutor
+                  │
+                  ▼
+           processed_text
+                  │
+        ┌─────────┴─────────┐
+        │                   │
+        ▼                   ▼
+    safe_text         new_carry_over
+        │                   │
+        ▼                   ▼
+ emit to client      save in state
+        │
+        ▼
+complete_response += safe_text
+
+
+---------
+
+ResponseAudit
+
+├── passed
+├── score
+├── findings
+├── citations_valid
+├── disclaimer_present
+├── pii_detected
+├── hallucination_score
+└── recommendations
+
+
+
+Compliance Dashboard
+
+Responses Today
+------------------------
+Passed            98.7%
+Warnings          1.1%
+Failed            0.2%
+
+Top Issues
+----------
+Missing citation          42
+Weak disclaimer           19
+PII detected               3
+Policy violation           1
+
+
+
+---------------
+
+                User
+                  │
+                  ▼
+             Advisor API
+                  │
+                  ▼
+            LangGraph Workflow
+                  │
+                  ▼
+             Prompt Compliance
+                  │
+                  ▼
+             Claude Streaming
+                  │
+                  ▼
+      Streaming Policy Validator
+                  │
+                  ▼
+               Client
+                  │
+                  ▼
+      Conversation Persistence
+                  │
+                  ▼
+          Publish SQS Event
+                  │
+                  ▼
+      Response Audit Worker
+                  │
+                  ▼
+      ResponseAuditExecutor
+                  │
+                  ▼
+        Audit Findings Store
+                  │
+          ┌───────┴────────┐
+          ▼                ▼
+      Langfuse         Dashboard
+
+
+
+---------------
+
+I actually like this design much better than the character-window approach. It's simpler, more robust, and closer to how production streaming systems often handle mutable text.
+
+## New Architecture
+
+```text
+                LLM
+                 │
+                 ▼
+      StreamingResponseAssembler
+                 │
+         append incoming chunk
+                 │
+                 ▼
+        SentenceExtractor
+                 │
+      ┌──────────┴──────────┐
+      │                     │
+  No complete          Complete sentence
+    sentence                  │
+      │                       ▼
+ return ""             PolicyExecutor
+                              │
+                              ▼
+                        emit sentence
+                              │
+                              ▼
+                     keep remaining buffer
+```
+
+---
+
+# StreamState
+
+Instead of `carry_over`, maintain a buffer.
+
+```python
+@dataclass(slots=True)
+class StreamState:
+    request: ProcessingRequest
+
+    buffer: str = ""
+    complete_response: str = ""
+
+    findings: list[ComplianceFinding] = field(default_factory=list)
+
+    blocked: bool = False
+    reason: str | None = None
+```
+
+No more `carry_over`.
+
+---
+
+# Assembler Flow
+
+Every chunk:
+
+```python
+state.buffer += chunk
+```
+
+Extract complete sentences:
+
+```python
+sentences, remainder = self._extract_sentences(state.buffer)
+```
+
+For each sentence:
+
+```python
+result = await executor.execute(
+    state.request.with_text(sentence)
+)
+```
+
+If rejected:
+
+```python
+return blocked
+```
+
+Else:
+
+```python
+output += result.request.text
+```
+
+Finally
+
+```python
+state.buffer = remainder
+```
+
+---
+
+# Sentence extractor
+
+This becomes the heart of the assembler.
+
+```python
+def _extract_sentences(
+    self,
+    text: str,
+) -> tuple[list[str], str]:
+```
+
+Input
+
+```
+Hello world. This is great! Another
+```
+
+Returns
+
+```python
+[
+    "Hello world.",
+    " This is great!",
+],
+" Another"
+```
+
+---
+
+Regex
+
+```python
+re.finditer(r"[.!?]\s*", text)
+```
+
+Each match marks a completed sentence.
+
+---
+
+# finalize()
+
+Very easy now.
+
+```python
+if state.buffer:
+
+    validate(state.buffer)
+
+    emit
+
+    clear buffer
+```
+
+Done.
+
+---
+
+# Benefits
+
+### No index math
+
+No
+
+```python
+text[:-64]
+```
+
+No
+
+```python
+text[-64:]
+```
+
+---
+
+### Replacement length doesn't matter
+
+```
+Guaranteed returns
+```
+
+↓
+
+```
+Expected returns
+```
+
+↓
+
+```
+Investment returns are never guaranteed
+```
+
+Still works.
+
+---
+
+### Chunk size irrelevant
+
+1 character
+
+Works.
+
+200 characters
+
+Works.
+
+500 characters
+
+Works.
+
+---
+
+### No duplicated characters
+
+Because the buffer is only consumed once.
+
+---
+
+### No missing characters
+
+Because every emitted sentence is removed from the buffer.
+
+---
+
+### Simpler tests
+
+You no longer need to worry about
+
+```
+Guaran
+teed
+```
+
+Only about
+
+```
+Sentence completed?
+```
+
+---
+
+# One enhancement I'd make
+
+Some LLMs stream like this:
+
+```
+• Equity funds
+• Debt funds
+• Hybrid funds
+```
+
+There is no period.
+
+So I'd consider a sentence "complete" if it ends with:
+
+* `.`
+* `?`
+* `!`
+* `\n`
+* double newline `\n\n`
+
+This makes streaming much smoother for:
+
+* bullets
+* markdown
+* tables
+* numbered lists
+
+For example, you can use a pattern like:
+
+```python
+SENTENCE_END = re.compile(r".*?(?:[.!?](?:\s+|$)|\n+)", re.DOTALL)
+```
+
+This will treat ordinary sentences as complete, but also flush complete bullet or list lines terminated by a newline.
+
+---
+
+## I think this is the right long-term design
+
+Compared to the previous implementation:
+
+| Character Window                   | Sentence Buffer |
+| ---------------------------------- | --------------- |
+| Complex boundary logic             | Simple          |
+| Replacement length bugs            | No              |
+| Duplicate risk                     | None            |
+| Missing character risk             | None            |
+| Easy to reason about               | Yes             |
+| Handles 1-char and 200-char chunks | Yes             |
+| Future PII/citation validators     | Easier          |
+
+I would build the assembler around **sentence extraction**, keep the `PolicyExecutor` unchanged, and let `finalize()` flush whatever remains in the buffer. It's a cleaner abstraction and avoids the boundary problems you uncovered with your tests.
