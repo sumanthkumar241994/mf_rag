@@ -66,6 +66,9 @@ from typing import Any, AsyncIterator
 from httpx import request
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
+from app.compliance.response.streaming.processing_request import ProcessingRequest
+from app.compliance.response.streaming.stream_state import StreamState
+from app.compliance.response.streaming.streaming_response_assembler import StreamingResponseAssembler
 from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.stream_event_type import StreamEventType
 from app.enums.workflow_decision import WorkflowDecision
@@ -75,6 +78,7 @@ from app.workflows.advisor.nodes.guardrail_node import GuardRailNode
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
 from app.workflows.advisor.nodes.prompt_builder_node import PromptBuilderNode
+from app.workflows.advisor.nodes.prompt_compliance_node import PromptComplianceNode
 from app.workflows.advisor.nodes.tool_execution_node import ToolExecutionNode
 from app.workflows.advisor.nodes.tool_failure_node import ToolFailureNode
 from app.workflows.workflow.node.workflow_node import WorkflowNode
@@ -95,8 +99,10 @@ class AdvisorWorkflow:
         workflow_node: WorkflowNode,
         tool_failure_node: ToolFailureNode,
         prompt_builder_node: PromptBuilderNode,
+        prompt_compliance_node: PromptComplianceNode,
         llm_node: LLMNode,
-        checkpointer: AsyncPostgresSaver
+        checkpointer: AsyncPostgresSaver,
+        response_assembler: StreamingResponseAssembler
     ):
         self._guardrail_node = guardrail_node
         self._planner_node = planner_node
@@ -104,9 +110,12 @@ class AdvisorWorkflow:
         self._workflow_node = workflow_node
         self._tool_failure_node = tool_failure_node
         self._prompt_builder_node = prompt_builder_node
+        self._prompt_compliance_node = prompt_compliance_node
         self._llm_node = llm_node
         self._checkpointer = checkpointer
+        self._response_assembler = response_assembler
         self._graph = self._build_graph()
+        self._response_stream_state: StreamState | None = None
 
     
     def _build_graph(self):
@@ -118,6 +127,7 @@ class AdvisorWorkflow:
         workflow.add_node("tool_execution", self._tool_execution_node)
         workflow.add_node("workflow", self._workflow_node)
         workflow.add_node("prompt_builder", self._prompt_builder_node)
+        workflow.add_node("prompt_compliance",self._prompt_compliance_node)
         workflow.add_node("tool_failure", self._tool_failure_node)
         workflow.add_node("llm", self._llm_node)
 
@@ -140,7 +150,15 @@ class AdvisorWorkflow:
             }
         )
         workflow.add_edge("workflow", "prompt_builder")
-        workflow.add_edge("prompt_builder", "llm")
+        workflow.add_edge("prompt_builder", "prompt_compliance")
+        workflow.add_conditional_edges(
+            "prompt_compliance",
+            self._route_after_prompt_compliance,
+            {
+                WorkflowDecision.CONTINUE.value: "llm",
+                WorkflowDecision.END.value: END,
+            },
+        )
         workflow.add_edge("llm", END)
         workflow.add_edge("tool_failure", END)
 
@@ -167,9 +185,21 @@ class AdvisorWorkflow:
 
     
     def _route_after_guardrails(
-    state: AdvisorState,
+        self,
+        state: AdvisorState,
     ):
         if state.guardrail_result.allowed:
+            return WorkflowDecision.CONTINUE.value
+
+        return WorkflowDecision.END.value
+
+
+    def _route_after_prompt_compliance(
+    self,
+    state: AdvisorState,
+    ) -> str:
+
+        if state.prompt_compliance_result.allowed:
             return WorkflowDecision.CONTINUE.value
 
         return WorkflowDecision.END.value
@@ -248,7 +278,9 @@ class AdvisorWorkflow:
         state: AdvisorState,
     ) -> AsyncIterator[AgentStreamEvent]:
 
-
+        self._response_stream_state = StreamState(
+            request=ProcessingRequest(text="")
+            )
 
         async for mode, chunk in self._graph.astream(
             state,
@@ -270,7 +302,7 @@ class AdvisorWorkflow:
             # ----------------------------------------------------
             if mode == "custom":
 
-                event = self._handle_custom_stream(
+                event = await self._handle_custom_stream(
                     state=state,
                     chunk=chunk,
                 )
@@ -308,7 +340,7 @@ class AdvisorWorkflow:
 
             if mode == "custom":
 
-                event = self._handle_custom_stream(
+                event = await self._handle_custom_stream(
                     state=state,
                     chunk=chunk,
                 )
@@ -367,7 +399,7 @@ class AdvisorWorkflow:
 
 
 
-    def _handle_custom_stream(
+    async def _handle_custom_stream(
         self,
         state: AdvisorState,
         chunk: dict[str, Any],
@@ -382,12 +414,18 @@ class AdvisorWorkflow:
             )
 
         if stream_type == "token":
-            return AgentStreamEvent(
-                type=StreamEventType.TOKEN.value,
-                token=chunk["token"],
-            )
+            result = await self._response_assembler.process_chunk(self._response_stream_state, chunk['token'])
+
+            if result.chunk:
+                return AgentStreamEvent(
+                    type=StreamEventType.TOKEN.value,
+                    token=result.chunk,
+                )
+                
+            return None
 
         if stream_type == "completed":
+            chunk['response'].answer = self._response_stream_state.processed_response
             return AgentStreamEvent(
                 type=StreamEventType.COMPLETED.value,
                 response=chunk["response"],
@@ -470,6 +508,16 @@ class AdvisorWorkflow:
                     "prompt_length": len(prompt.user_prompt),
                 },
             )
+
+        elif node_name == "prompt_compliance":
+            llm_response = node_state.get("llm_response")
+            if llm_response:
+                yield AgentStreamEvent(
+                    type=StreamEventType.COMPLETED.value,
+                    response=llm_response,
+                )
+
+                return
 
         elif node_name == "tool_failure":
 

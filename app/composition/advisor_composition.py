@@ -1,6 +1,7 @@
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from app.agents.advisor_agent import AdvisorAgent
 from app.business.advisor.enums.capabilities import Capability
+from app.compliance.response.streaming.streaming_response_assembler import StreamingResponseAssembler
 from app.composition.business.customer_composition import CustomerComposition
 from app.composition.business.document_composition import DocumentComposition
 from app.composition.business.goal_composition import GoalComposition
@@ -11,6 +12,7 @@ from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
 from app.composition.planner.hybrid_planner_composition import HybridPlannerComposition
 from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
+from app.composition.prompt_compliance_composition import PromptComplianceComposition
 from app.composition.tool_composition import ToolComposition
 from app.composition.workflow_composition import WorkflowComposition
 from app.workflows.advisor.advisor_workflow import AdvisorWorkflow
@@ -18,6 +20,7 @@ from app.workflows.advisor.nodes.guardrail_node import GuardRailNode
 from app.workflows.advisor.nodes.llm_node import LLMNode
 from app.workflows.advisor.nodes.planner_node import PlannerNode
 from app.workflows.advisor.nodes.prompt_builder_node import PromptBuilderNode
+from app.workflows.advisor.nodes.prompt_compliance_node import PromptComplianceNode
 from app.workflows.advisor.nodes.tool_execution_node import ToolExecutionNode
 from app.workflows.advisor.nodes.tool_failure_node import ToolFailureNode
 from app.workflows.workflow.node.workflow_node import WorkflowNode
@@ -40,9 +43,11 @@ class AdvisorComposition:
         document: DocumentComposition,
         tools: ToolComposition,
         prompt: AdvisorPromptComposition,
+        prompt_compliance: PromptComplianceComposition,
         llm: LLMComposition,
         workflow: WorkflowComposition,
-        checkpointer: BaseCheckpointSaver
+        checkpointer: BaseCheckpointSaver,
+        streaming_assembler: StreamingResponseAssembler
     ):
         tools.registry.register(
             definition=portfolio.definition,
@@ -86,6 +91,10 @@ class AdvisorComposition:
             prompt_builder=prompt.prompt_builder
         )
 
+        self.prompt_compliance_node = PromptComplianceNode(
+            prompt_compliance.service
+        )
+
         self.llm_node = LLMNode(
             gateway=llm.gateway
         )
@@ -101,10 +110,12 @@ class AdvisorComposition:
             tool_exectution_node=self.tool_execution_node,
             tool_failure_node=ToolFailureNode(),
             prompt_builder_node=self.prompt_builder_node,
+            prompt_compliance_node=self.prompt_compliance_node,
             llm_node=self.llm_node,
             workflow_node=self.workflow_node,
             guardrail_node = GuardRailNode(guardrail_service=self.guardrails.guardrail_service),
-            checkpointer=checkpointer
+            checkpointer=checkpointer,
+            response_assembler=streaming_assembler
         )
 
         self.agent = AdvisorAgent(

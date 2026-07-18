@@ -26,6 +26,8 @@ dependencies = [
     "requests==2.31.0",
     "sentence-transformers>=5.5.1",
     "sqlalchemy>=2.0.50",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
 ]
 [tools.fastapi]
 entrypoint = "main.app"

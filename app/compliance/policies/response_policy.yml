@@ -1,0 +1,108 @@
+disclaimers:
+
+  recommendation:
+    enabled: true
+    text: >
+      Mutual fund investments are subject to market risks.
+      Read all scheme related documents carefully before investing.
+
+  performance:
+    enabled: true
+    text: >
+      Past performance is not indicative of future results.
+
+  taxation:
+    enabled: true
+    text: >
+      Tax implications depend on individual circumstances and prevailing tax laws.
+      Please consult a qualified tax advisor before making investment decisions.
+
+  retirement:
+    enabled: true
+    text: >
+      Retirement projections are illustrative and should not be considered guaranteed outcomes.
+
+  sip:
+    enabled: true
+    text: >
+      SIP investments help promote disciplined investing but do not guarantee profits or protect against market losses.
+
+  portfolio:
+    enabled: true
+    text: >
+      Portfolio analysis is based on the information available at the time of evaluation.
+
+citations:
+
+  enabled: true
+
+  required_when_context_available: true
+
+  format: "[Source {id}]"
+
+  require_all_factual_claims: true
+
+pii:
+
+  enabled: true
+
+  mask_email: true
+
+  mask_phone: true
+
+  mask_pan: true
+
+  mask_aadhaar: true
+
+  mask_bank_account: true
+
+policy:
+
+  replace_prohibited_phrases: true
+
+  reject_critical_phrases: true
+
+response_rules:
+
+  append_disclaimer_once: true
+
+  preserve_markdown: true
+
+  preserve_tables: true
+
+  preserve_lists: true
+
+  preserve_code_blocks: true
+
+  trim_trailing_whitespace: true
+
+quality:
+
+  minimum_response_length: 20
+
+  maximum_response_length: 20000
+
+  require_complete_sentences: true
+
+  remove_duplicate_paragraphs: true
+
+  remove_duplicate_disclaimers: true
+
+fallbacks:
+
+  insufficient_context_message: >
+    I don't have sufficient information in the available documents to answer this confidently.
+
+  policy_violation_message: >
+    I'm unable to provide that response because it doesn't comply with our content policies.
+
+  citation_missing_message: >
+    Supporting citations are required for factual information.
+
+audit:
+
+  collect_findings: true
+
+  include_warnings: true
+
+  include_validator_name: true

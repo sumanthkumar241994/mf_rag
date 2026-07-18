@@ -51,7 +51,7 @@ class LLMGuardService:
 
             return validation.response
         
-        except Exception:
+        except Exception as ex:
             return LLMGuardResponse(
                 allowed=False,
                 confidence=0.0,

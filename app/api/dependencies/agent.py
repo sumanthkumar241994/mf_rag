@@ -1,9 +1,11 @@
 from fastapi import Depends
 from app.agents.advisor_agent import AdvisorAgent
 from app.api.dependencies.customer import get_customer_gateway
+from app.api.dependencies.policy_repository import get_policy_repository
 from app.api.dependencies.portfolio import get_portfolio_gateway
 from app.api.dependencies.retrieval import get_context_builder, get_retrieval_service
 from app.api.dependencies.scheme import get_scheme_gateway
+from app.api.dependencies.streaming_response_assembler import get_streaming_assembler
 from app.business.customer.gateway.falcon_customer_gateway import FalconCustomerGateway
 from app.business.document.services.context_builder import ContextBuilder
 from app.business.document.services.retrieval_service import RetrievalService
@@ -11,6 +13,8 @@ from app.business.goal.context.goal_context_provider import GoalContextProvider
 from app.business.portfolio.gateways.falcon_portfolio_gateway import FalconPortfolioGateway
 from app.business.portfolio.gateways.portfolio_gateway import PortfolioGateway
 from app.business.scheme.gateways.falcon_scheme_gateway import FalconSchemeGateway
+from app.compliance.repository.policy_repository import PolicyRepository
+from app.compliance.response.streaming.streaming_response_assembler import StreamingResponseAssembler
 from app.composition.advisor_composition import AdvisorComposition
 from app.composition.business.customer_composition import CustomerComposition
 from app.composition.business.document_composition import DocumentComposition
@@ -21,6 +25,7 @@ from app.composition.llm_composition.gemma_composition import LLMComposition
 from app.composition.planner.deterministic_planner_composition import DeterministicPlannerComposition
 from app.composition.planner.hybrid_planner_composition import HybridPlannerComposition
 from app.composition.prompt.advisor_prompt_composition import AdvisorPromptComposition
+from app.composition.prompt_compliance_composition import PromptComplianceComposition
 from app.composition.tool_composition import ToolComposition
 from app.composition.workflow_composition import WorkflowComposition
 from app.infrastructure.workflow.workflow_checkpointer import workflow_checkpointer
@@ -32,7 +37,9 @@ def get_advisor_agent(
     scheme_gateway: FalconSchemeGateway = Depends(get_scheme_gateway),
     customer_gateway: FalconCustomerGateway = Depends(get_customer_gateway),
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
-    context_builder: ContextBuilder = Depends(get_context_builder)
+    context_builder: ContextBuilder = Depends(get_context_builder),
+    policy_repository: PolicyRepository = Depends(get_policy_repository),
+    streaming_assembler: StreamingResponseAssembler = Depends(get_streaming_assembler)
 ) -> AdvisorAgent:
     global _advisor
     if _advisor is None:
@@ -47,6 +54,7 @@ def get_advisor_agent(
         prompt = AdvisorPromptComposition()
         llm = LLMComposition()
         planner = HybridPlannerComposition(llm.gateway)
+        prompt_compliance = PromptComplianceComposition(policy_repository=policy_repository)
 
         advisor = AdvisorComposition(
             portfolio=portfolio,
@@ -57,9 +65,11 @@ def get_advisor_agent(
             planner=planner,
             tools=tools,
             prompt=prompt,
+            prompt_compliance=prompt_compliance,
             llm=llm,
             workflow=workflow,
-            checkpointer=workflow_checkpointer.checkpointer
+            checkpointer=workflow_checkpointer.checkpointer,
+            streaming_assembler=streaming_assembler
         )
 
         _advisor =advisor

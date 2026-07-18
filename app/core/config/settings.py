@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path, PosixPath
+
 
 class Settings(BaseSettings):
     APP_NAME: str = "Mutual fund Agentic Search Engine"
@@ -6,6 +8,9 @@ class Settings(BaseSettings):
     APP_DESCRIPTION: str = "Agentic search for mutual funds"
     APP_DOCS_URL: str = "/docs"
     APP_REDOC_URL: str = "/redoc"
+
+    BASE_DIR: PosixPath = Path(__file__).resolve().parent.parent.parent
+    COMPLIANCE_POLICY_DIRECTORY: PosixPath = BASE_DIR / "compliance" / "policies"
 
     POSTGRES_HOST: str
     POSTGRES_PORT: int

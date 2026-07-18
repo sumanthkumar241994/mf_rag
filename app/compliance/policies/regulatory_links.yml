@@ -1,0 +1,23 @@
+rbi:
+
+  kyc:
+    title: RBI KYC Guidelines
+    url: google.com
+
+  complaints:
+    title: RBI Consumer Complaints
+    url: google.com
+
+sebi:
+
+  investor:
+    title: SEBI Investor Education
+    url: google.com
+
+  mutual_funds:
+    title: SEBI Mutual Fund Regulations
+    url: google.com
+
+  grievance:
+    title: SCORES Investor Grievance Portal
+    url: google.com

@@ -1,0 +1,59 @@
+blocked:
+
+  - pattern: "\\bguaranteed\\s+return(s)?\\b"
+    description: "Guaranteed return claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "expected returns"
+
+  - pattern: "\\bassured\\s+return(s)?\\b"
+    description: "Assured return claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "potential return"
+
+  - pattern: "\\brisk[-\\s]?free\\s+investment(s)?\\b"
+    description: "Risk-free investment claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "lower-risk investment"
+
+  - pattern: "\\bzero\\s+risk\\b"
+    description: "Zero risk claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "low risk"
+
+  - pattern: "\\bfixed\\s+profit(s)?\\b"
+    description: "Fixed profit claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "potential returns"
+
+  - pattern: "\\bdouble\\s+your\\s+money\\b"
+    description: "Double your money claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "investment returns are not guaranteed"
+
+  - pattern: "\\b100\\s*%\\s*safe\\s+investment(s)?\\b"
+    description: "100% safe investment claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "investment carries market risk"
+
+  - pattern: "\\bSEBI\\s+approved\\s+investment(s)?\\b"
+    description: "Unauthorized SEBI approval claim"
+    severity: CRITICAL
+    action: REJECT
+
+  - pattern: "\\bRBI\\s+approved\\s+mutual\\s+fund(s)?\\b"
+    description: "Unauthorized RBI approval claim"
+    severity: CRITICAL
+    action: REJECT
+
+  - pattern: "\\bguaranteed\\s+NAV\\b"
+    description: "Guaranteed NAV claim"
+    severity: HIGH
+    action: REPLACE
+    replacement: "NAV is determined by market value"
