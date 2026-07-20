@@ -73,6 +73,7 @@ from app.dtos.agents.stream_event import AgentStreamEvent
 from app.enums.stream_event_type import StreamEventType
 from app.enums.workflow_decision import WorkflowDecision
 from app.mapper.advisor_state_mapper import AdvisorStateMapper
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.advisor.nodes.guardrail_node import GuardRailNode
 from app.workflows.advisor.nodes.llm_node import LLMNode
@@ -205,6 +206,14 @@ class AdvisorWorkflow:
         return WorkflowDecision.END.value
 
 
+    @trace_step(
+        "advisor_workflow",
+        output_mapper=lambda state: {
+            "tools_executed": len(state.tool_results),
+            "errors": len(state.errors),
+            "interrupted": state.workflow_interrupt is not None,
+        },
+    )
     async def invoke(self, state: AdvisorState) -> AdvisorState:
         result = await self._graph.ainvoke(
             state,
@@ -323,8 +332,7 @@ class AdvisorWorkflow:
                 ):
                     yield event
 
-            
-
+        
     async def resume_stream(
     self,
     state: AdvisorState,

@@ -11638,3 +11638,465 @@ Compared to the previous implementation:
 | Future PII/citation validators     | Easier          |
 
 I would build the assembler around **sentence extraction**, keep the `PolicyExecutor` unchanged, and let `finalize()` flush whatever remains in the buffer. It's a cleaner abstraction and avoids the boundary problems you uncovered with your tests.
+
+
+----------------------------------------
+
+                    Customer
+                        │
+                        ▼
+                  Feedback API
+                        │
+                        ▼
+                Feedback Service
+                        │
+        ┌───────────────┴────────────────┐
+        ▼                                ▼
+ Feedback Repository           FeedbackReceivedEvent
+                                         │
+         ┌──────────────┬────────────────┴──────────────┬───────────────┐
+         ▼              ▼                               ▼               ▼
+   Analytics      Evaluation                    Issue Detection    Notification
+         │              │                               │
+         ▼              ▼                               ▼
+      Dashboards    Reflection                 IssueDetectedEvent
+                                                       │
+                                                       ▼
+                                                Escalation Service
+                                                       │
+                                        ┌──────────────┴─────────────┐
+                                        ▼                            ▼
+                                      Jira                        Slack
+
+
+---------------------------------
+
+
+                    FeedbackReceivedEvent
+                              │
+                              ▼
+                     EvaluationHandler
+                              │
+                              ▼
+                     EvaluationService
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                             ▼
+      Business Repository             Langfuse Client
+               │                             │
+               │                             │
+       Load Message                    Fetch Trace
+       Load Feedback                  Fetch Observations
+       Load Conversation             Fetch Retrieval
+                                     Fetch Tool Calls
+                                     Fetch Metrics
+               └──────────────┬──────────────┘
+                              ▼
+                  EvaluationContextBuilder
+                              │
+                              ▼
+                     EvaluationContext
+                              │
+                              ▼
+                    Evaluation Pipeline
+                              │
+        ┌──────────────┬──────────────┐
+        ▼              ▼              ▼
+   Rule Metrics   DeepEval Metrics  Custom Metrics
+                              │
+                              ▼
+                    EvaluationRepository
+                              │
+                              ▼
+                EvaluationCompletedEvent
+
+
+-----------------------------------
+
+Phase 1
+--------
+Evaluation Domain
+✓ Models
+✓ DB
+✓ Repository
+
+Phase 2
+--------
+Events
+✓ EvaluationRequested
+✓ EvaluationCompleted
+
+Phase 3
+--------
+EvaluationContextBuilder
+✓ DB
+✓ Langfuse
+
+Phase 4
+--------
+Evaluation Pipeline
+✓ Evaluator Interface
+✓ Pipeline
+
+Phase 5
+--------
+Rule-Based Metrics
+✓ Latency
+✓ Token Usage
+✓ Tool Failure
+✓ Response Validation
+
+Phase 6
+--------
+DeepEval
+✓ Adapter
+✓ Faithfulness
+✓ Correctness
+✓ Hallucination
+✓ Answer Relevancy
+
+Phase 7
+--------
+Evaluation Service
+✓ Orchestration
+✓ Persistence
+✓ Events
+
+Phase 8
+--------
+Analytics Foundation
+✓ Overall Score
+✓ Metrics Storage
+
+Phase 9
+--------
+Enterprise Evaluators
+✓ Planner
+✓ Investment Agent
+✓ HITL
+✓ MCP
+✓ Compliance
+
+Phase 10
+---------
+Sampling Strategy
+✓ Feedback Events
+✓ Cron Sampling
+✓ Risk-based Sampling
+
+
+------------------------
+Phase 1–3: Build the foundation (domain, events, context).
+Phase 4–7: Build the execution engine (pipeline, evaluators, service).
+Phase 8–10: Build the enterprise capabilities (analytics, custom evaluators, scalable sampling).
+
+------------------------
+
+I completely agree. **Don't build the evaluation platform until you've finalized what gets traced.**
+
+The evaluation platform is a consumer of execution data. If the execution data isn't complete, you'll end up changing both Langfuse instrumentation and the evaluation models later.
+
+I would make this the next milestone.
+
+---
+
+# Phase 1 - Complete Langfuse Instrumentation
+
+Today you have only:
+
+```text
+Generation
+```
+
+For evaluation, we need the complete execution lifecycle.
+
+```text
+Trace
+│
+├── Planner
+├── Retrieval
+├── Context Builder
+├── Tool Execution(s)
+├── Guardrails
+├── Compliance
+├── Generation
+└── Final Response
+```
+
+---
+
+# 1. Planner Observation
+
+Capture:
+
+```text
+planner_version
+
+intent
+
+capabilities
+
+selected_tools
+
+reasoning
+
+confidence
+
+latency_ms
+```
+
+---
+
+# 2. Retrieval Observation
+
+Capture:
+
+```text
+query
+
+embedding_model
+
+top_k
+
+retrieved_chunks
+
+document_ids
+
+scores
+
+latency_ms
+```
+
+Don't log full document text if it's huge. For evaluation, store:
+
+* chunk_id
+* document_id
+* score
+* snippet (optional)
+
+---
+
+# 3. Context Builder Observation
+
+Capture:
+
+```text
+chunk_count
+
+context_tokens
+
+truncated
+
+sources
+
+latency_ms
+```
+
+This is useful for diagnosing context window issues.
+
+---
+
+# 4. Tool Execution Observation
+
+One observation per tool.
+
+```text
+tool_name
+
+input
+
+output
+
+status
+
+error
+
+latency_ms
+```
+
+Later you'll have:
+
+* Portfolio Tool
+* Goal Tool
+* Customer Tool
+* Scheme Tool
+* Transaction Tool
+
+---
+
+# 5. Guardrail Observation
+
+Capture:
+
+```text
+allowed
+
+findings
+
+pii_detected
+
+compliance_findings
+
+latency_ms
+```
+
+---
+
+# 6. Compliance Observation
+
+Later.
+
+```text
+sebi_checks
+
+rbi_checks
+
+citations
+
+recommendation_allowed
+```
+
+---
+
+# 7. Generation (Already Present)
+
+You're already logging:
+
+* prompt
+* answer
+* tokens
+* cost
+* latency
+
+This is good.
+
+---
+
+# 8. Final Response
+
+This is optional but useful.
+
+Capture:
+
+```text
+response_length
+
+citations
+
+streaming
+
+finish_reason
+```
+
+---
+
+# Complete Trace
+
+It should look like:
+
+```text
+Trace
+│
+├── Planner
+│
+├── Retrieval
+│
+├── Context Builder
+│
+├── Tool (Portfolio)
+│
+├── Tool (Customer)
+│
+├── Guardrails
+│
+├── Generation
+│
+└── Response
+```
+
+---
+
+# Why this matters
+
+Once every stage emits a structured observation, the evaluation platform becomes straightforward.
+
+The `ExecutionTrace` model can map directly to these observations.
+
+For example:
+
+```python
+ExecutionTrace
+
+planner
+
+retrieval
+
+tools
+
+guardrails
+
+generation
+
+response
+```
+
+Then evaluators become very simple:
+
+```python
+context.trace.retrieval
+
+context.trace.planner
+
+context.trace.tools
+
+context.trace.generation
+```
+
+No evaluator needs to understand Langfuse internals.
+
+---
+
+# Recommended order
+
+I would pause the evaluation implementation here and finish the instrumentation first.
+
+```text
+✅ Domain Models
+✅ SQLAlchemy Models
+✅ Repository
+
+⬇
+
+Finish Langfuse instrumentation
+
+    Planner
+    Retrieval
+    Context Builder
+    Tool Execution
+    Guardrails
+    Generation
+
+⬇
+
+Design ExecutionTrace model
+
+⬇
+
+EvaluationContextBuilder
+
+⬇
+
+Evaluation Pipeline
+
+⬇
+
+Evaluators
+
+⬇
+
+Evaluation Service
+```
+
+This sequence minimizes rework because the `ExecutionTrace` model will be based on the actual trace data you're emitting, rather than assumptions. It also keeps the evaluation platform independent of Langfuse while ensuring it has all the execution information it needs.
+
+--------------------------------

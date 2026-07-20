@@ -3,12 +3,14 @@ import time
 from typing import AsyncIterator
 
 from app.agents.advisor_agent import AdvisorAgent
+from app.compliance.response.streaming import stream_state
 from app.core.middleware.request_context_vars import trace_id_ctx
 from app.dtos.agents.stream_event import AgentStreamEvent
 from app.dtos.request_context import RequestContext
 from app.enums.stream_event_type import StreamEventType
 from app.dtos.agents.agent_response import AgentResponse
 from app.enums.conversation import MessageRole
+from app.models.message import Message
 from app.services.conversation_service import ConversationService
 from app.workflows.advisor.advisor_state import AdvisorState
 
@@ -142,13 +144,21 @@ class Orchestrator:
                 if stream_response.metrics:
                     metadata['llm_metrics'] = asdict(stream_response.metrics)
 
-                await self.conversation_service.add_assistant_message(
+                message: Message =  await self.conversation_service.add_assistant_message(
                     conversation=conversation,
                     content=stream_response.answer,
                     trace_id=trace_id,
                     metadata=metadata
 
                 )
+
+                yield AgentStreamEvent(
+                    type=StreamEventType.MESSAGE_SAVED.value,
+                    metadata={
+                        "message_id": str(message.id),
+                    },
+                )
+                    
 
             elif workflow_interrupt:
                 await self.conversation_service.add_interrupt_message(

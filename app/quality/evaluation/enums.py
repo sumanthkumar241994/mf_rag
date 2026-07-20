@@ -1,0 +1,41 @@
+from enum import StrEnum
+
+
+class EvaluationStatus(StrEnum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class EvaluationTriggerType(StrEnum):
+    FEEDBACK = "FEEDBACK"
+    CRON = "CRON"
+    MANUAL = "MANUAL"
+
+class MetricSource(StrEnum):
+    RULE = "RULE"
+    DEEPEVAL = "DEEPEVAL"
+    CUSTOM = "CUSTOM"
+
+
+class MetricStatus(StrEnum):
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+
+
+class MetricType(StrEnum):
+    LATENCY = "LATENCY"
+    TOKEN_USAGE = "TOKEN_USAGE"
+    RESPONSE_VALIDATION = "RESPONSE_VALIDATION"
+
+    FAITHFULNESS = "FAITHFULNESS"
+    ANSWER_CORRECTNESS = "ANSWER_CORRECTNESS"
+    HALLUCINATION = "HALLUCINATION"
+    ANSWER_RELEVANCY = "ANSWER_RELEVANCY"
+
+    PLANNER_ACCURACY = "PLANNER_ACCURACY"
+    TOOL_ACCURACY = "TOOL_ACCURACY"
+    HITL = "HITL"
+    MCP = "MCP"

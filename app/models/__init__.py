@@ -5,3 +5,4 @@ from .version_chunk_mapping import VersionChunkMapping
 from .conversation import Conversation
 from .message import Message
 from .conversation_summary import ConversationSummary
+from .feedback import Feedback

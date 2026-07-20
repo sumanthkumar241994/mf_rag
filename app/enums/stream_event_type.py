@@ -1,6 +1,7 @@
 from enum import StrEnum
 
 class StreamEventType(StrEnum):
+    MESSAGE_SAVED = 'message_saved'
     SESSION = "session"
     TOKEN = "token"
     COMPLETED = "completed"

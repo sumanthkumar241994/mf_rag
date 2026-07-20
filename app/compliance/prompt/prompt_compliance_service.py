@@ -9,6 +9,7 @@ from app.compliance.prompt.models.prompt_compliance_result import (
 from app.compliance.prompt.validators.base import (
     PromptComplianceValidator,
 )
+from app.observability.tracing import trace_step
 
 
 class PromptComplianceService:
@@ -19,6 +20,14 @@ class PromptComplianceService:
     ):
         self._validators = validators
 
+    @trace_step(
+        "prompt_compliance",
+        output_mapper=lambda result: {
+            "allowed": result.allowed,
+            "findings": len(result.findings),
+            "santized_promt": result.sanitized_prompt
+        }
+    )
     async def validate(
         self,
         request: PromptComplianceRequest,
