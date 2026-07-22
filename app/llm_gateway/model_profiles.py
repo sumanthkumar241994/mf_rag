@@ -11,6 +11,10 @@ MODEL_PROFILES = {
         provider=Provider.GEMMA,
         model_id=settings.BEDROCK_GEMMA_MODEL_ID,
     ),
+    ModelProfile.JUDGE: ModelConfig(
+        provider=Provider.GEMMA,
+        model_id=settings.BEDROCK_GEMMA_MODEL_ID,
+    ),
     ModelProfile.CHAT: ModelConfig(
         provider=Provider.GEMMA,
         model_id=settings.BEDROCK_GEMMA_MODEL_ID,

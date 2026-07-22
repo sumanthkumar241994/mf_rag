@@ -31,7 +31,8 @@ class DocumentService(BaseWorkflowService[DocumentContext]):
             if execution is None
             else {
                 "success": True,
-                "chunks": execution.result.chunk_count,
+                "chunk_count": execution.result.chunk_count,
+                "source_count": len(execution.result.sources),
                 "truncated": execution.result.truncated,
             }
         ),

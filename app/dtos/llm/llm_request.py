@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import Any
 
 from app.dtos.llm.llm_response_format import ResponseFormat
+
 
 @dataclass(slots=True)
 class LLMRequest:
@@ -8,4 +10,4 @@ class LLMRequest:
     system_prompt: str
     temperature: float = 0.0
     max_tokens: int = 2000
-    response_format: ResponseFormat | None = None
+    response_model: type[Any] | None = None

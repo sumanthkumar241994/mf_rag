@@ -48,6 +48,24 @@ class MessageRepository:
         result = await self.db.execute(stmt)
 
         return result.scalar_one_or_none()
+
+    async def get_previous_user_message(
+        self,
+        conversation_id: UUID,
+        sequence_number: int,
+    ) -> Message | None:
+
+        stmt = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.sequence_number < sequence_number,
+                Message.role == MessageRole.USER,
+            )
+            .order_by(Message.sequence_number.desc())
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
     
     async def get_recent(self, conversation_id: UUID, limit: int = 20) -> list[Message] :
         stmt = select(Message).where(

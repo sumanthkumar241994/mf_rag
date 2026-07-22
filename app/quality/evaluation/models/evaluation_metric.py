@@ -6,9 +6,9 @@ from ..enums import MetricSource, MetricType, MetricStatus
 
 @dataclass(slots=True, kw_only=True)
 class EvaluationMetric:
-    metric: MetricType
+    type: MetricType
     source: MetricSource
+    status: MetricStatus
     score: float | None = None
-    status:  MetricStatus | None = None
-    reason: str |None = None
+    explanation: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

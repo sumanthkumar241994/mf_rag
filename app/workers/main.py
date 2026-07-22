@@ -30,7 +30,7 @@ async def main():
         print("worker created")
         await worker.start()
     finally:
-        langfuse_client.flush()
+        langfuse_client.client.flush()
 
 if __name__ == '__main__':
     asyncio.run(main())

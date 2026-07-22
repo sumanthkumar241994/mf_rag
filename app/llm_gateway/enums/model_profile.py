@@ -11,3 +11,4 @@ class ModelProfile(StrEnum):
     REFLECTION = "reflection"
     EVALUATION = "evaluation"
     EMBEDDING = "embedding"
+    JUDGE = 'judge'

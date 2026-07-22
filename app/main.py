@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
         logger.error("Database connection failed")
         raise
 
-    _ = langfuse_client
+    _ = langfuse_client.client
 
     await workflow_checkpointer.initialize()
     logger.info("Workflow checkpointer initalized")
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 
     await workflow_checkpointer.shutdown()
     await engine.dispose()
-    langfuse_client.flush()
+    langfuse_client.client.flush()
     print("Shutting down...")
 
 def create_application() -> FastAPI:

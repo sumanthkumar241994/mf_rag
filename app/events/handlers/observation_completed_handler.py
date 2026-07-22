@@ -11,7 +11,7 @@ class ObservationCompletedHandler(EventHandler[ObservationCompletedEvent]):
     """
     Publishes complete LLM generations to Langfuse
     """
-    critical = False
+    critical = True
 
     def __init__(self, langfuse: Langfuse):
         self.langfuse = langfuse

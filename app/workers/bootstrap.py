@@ -18,11 +18,11 @@ from app.workers.event_worker import EventWorker
 def get_event_worker() -> EventWorker:
     dispatcher = EventDispatcher()
 
-    dispatcher.register(EventType.LLM_GENERATION_COMPLETED, LangfuseHandler(langfuse=langfuse_client))
+    dispatcher.register(EventType.LLM_GENERATION_COMPLETED, LangfuseHandler(langfuse=langfuse_client.client))
     dispatcher.register(EventType.CONVERSATION_TITLE_GENERATE,ConversationTitleHandler(title_service=build_conversation_title_service()))
     dispatcher.register(EventType.CONVERSATION_SUMMARY_GENERATE, ConversationSummaryHandler(summary_service=build_conversation_summary_service()))
     dispatcher.register(EventType.FEEDBACK_RECEIVED, FeedbackReceivedHandler())
-    dispatcher.register(EventType.OBSERVATION_COMPLETED, ObservationCompletedHandler(langfuse=langfuse_client))
+    dispatcher.register(EventType.OBSERVATION_COMPLETED, ObservationCompletedHandler(langfuse=langfuse_client.client))
 
     consumer = SQSConsumer()
 
