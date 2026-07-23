@@ -46,7 +46,10 @@ class Settings(BaseSettings):
 
     REDIS_URL: str
 
-    CONVERSATION_SUMMARY_INTERVAL: int = 1
+    CONVERSATION_SUMMARY_INTERVAL: int = 20
+
+    FEEDBACK_ZAPIER_WEBHOOK_URL: str
+    EVALUATION_ZAPIER_WEBHOOK_URL: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
 

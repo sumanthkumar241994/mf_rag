@@ -11,6 +11,7 @@ from app.business.scheme.models.scheme_summary import SchemeSummary
 from app.business.scheme.parsers.scheme_query_parser import SchemeQueryParser
 from app.business.scheme.scheme_resolver import SchemeResolver
 from app.infrastructure.api_client.models import GateWayRequestContext
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.workflow.models.workflow_execution import WorkflowExecution
 from app.workflows.workflow.service.workflow_service import WorkflowService
@@ -33,6 +34,22 @@ class SchemeService(BaseWorkflowService[SchemeDetails]):
         self._scheme_resolver = scheme_resolver
         self._workflow_service = workflow_service
 
+    @trace_step(
+        "scheme_tool",
+        output_mapper=lambda execution: (
+        {
+            "success": False,
+        }
+        if execution is None
+        else {
+            "success": True,
+            "interrupted": execution.interrupted,
+        }
+        ),
+        metadata_mapper=lambda result: {
+            "tool": "scheme",
+        },
+    )
     async def execute(
         self,
         state: AdvisorState,

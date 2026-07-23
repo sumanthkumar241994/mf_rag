@@ -1,6 +1,7 @@
 from app.business.advisor.enums.capabilities import Capability
 from app.business.common.services.base_workflow_service import BaseWorkflowService
 from app.business.portfolio.analysis.models.portfolio_analysis import PortfolioAnalysis
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.business.advisor.models.advisor_error import AdvisorError
 from app.business.common.models.gateway_result import GatewayResult
@@ -28,6 +29,22 @@ class PortfolioService(BaseWorkflowService[PortfolioAnalysis]):
         self._portfolio_analyzer = portfolio_analyzer
         self._workflow_service = workflow_service
 
+    @trace_step(
+        "portfolio_tool",
+        output_mapper=lambda execution: (
+        {
+            "success": False,
+        }
+        if execution is None
+        else {
+            "success": True,
+            "interrupted": execution.interrupted,
+        }
+        ),
+        metadata_mapper=lambda result: {
+            "tool": "portfolio",
+        },
+    )
     async def analyze(
         self, 
         state: AdvisorState

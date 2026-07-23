@@ -78,7 +78,14 @@ class AdvisorService:
     ) -> AgentResponse:
         return await self.orchestrator.run(request=request)
     
-    @trace_workflow("advisor_stream_chat")
+    @trace_workflow(
+        "advisor_stream_chat",
+            input_mapper=lambda self, request: {
+            "query": request.query,
+            "customer_id": request.customer_id,
+            "has_conversation": request.conversation_id is not None,
+        },
+    )
     async def stream(
         self,
         request: RequestContext

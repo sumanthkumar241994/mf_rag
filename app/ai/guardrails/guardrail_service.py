@@ -1,7 +1,9 @@
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.ai.guardrails.deterministic.validators.base import GuardRailValidator
 from app.ai.guardrails.llm.llm_guard_service import LLMGuardService
+from app.dtos import request_context
 from app.dtos.request_context import RequestContext
+from app.observability.tracing import trace_step
 
 class GuardRailService:
     """
@@ -18,6 +20,27 @@ class GuardRailService:
         self._validators = validators
         self._llm_guard_service = llm_guard_service
 
+
+    @trace_step(
+        "guardrails",
+        input_mapper= lambda self, request_context: (
+            {"query": request_context.query}
+        ),
+        output_mapper=lambda result: (
+            {
+                "allowed": False,
+                "reason": result.reason,
+                "response": result.response,
+            }
+            if not result.allowed
+            else {
+                "allowed": True,
+            }
+        ),
+        metadata_mapper=lambda result: {
+            "blocked": not result.allowed,
+        },
+    )
     async def validate(
         self,
         request_context: RequestContext,

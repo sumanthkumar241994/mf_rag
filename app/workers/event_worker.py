@@ -41,7 +41,7 @@ class EventWorker:
                     continue
 
                 for message in messages:
-                    print(message)
+                    logger.info(f"Processing event_id: {message['Body']['event_id']} and event type: {message['Body']['event_type']}")
                     await self._process_message(prirority=priority, message=message)
             except Exception:
                 print(f"Failed while polling {priority} queue")
@@ -63,5 +63,5 @@ class EventWorker:
                 priority=prirority,
                 receipt_handle=receipt_handle
             )
-        except Exception:
-            print(f"Failed processing message from {prirority} queue")
+        except Exception as ex:
+            print(f"Failed processing message from {prirority} queue and exception {str(ex)}")

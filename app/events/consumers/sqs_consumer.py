@@ -7,6 +7,10 @@ from app.core.config.aws import AWS
 from app.core.config.settings import settings
 from app.events.models.queue_priority import QueuePriority
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class SQSConsumer:
     """
     Thin wrapper around Amazon SQS.
@@ -50,11 +54,12 @@ class SQSConsumer:
     async def delete_message(self, priority: QueuePriority, receipt_handle: str):
         queue_url = self.queue_urls[priority]
 
-        await asyncio.to_thread(
+        response = await asyncio.to_thread(
             self.sqs.delete_message,
             QueueUrl=queue_url,
             ReceiptHandle=receipt_handle
         )
+        logger.info(f"Message deletion response: {str(response['ResponseMetadata']['HTTPStatusCode'])} and retry attempts: {str(response['ResponseMetadata']['RetryAttempts'])}")
     
     @staticmethod
     def get_body(message: dict[str, Any]):

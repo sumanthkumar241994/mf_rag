@@ -36,8 +36,9 @@ class EventDispatcher:
             if isinstance(result, Exception):
                 logger.exception(f"Handler: {handler.__class__.__name__} failed. event_id: {event.event_id}", exc_info=result)
             
-            if handler.critical:
+            if handler.critical and result:
                 critical_errors.append(result)
         
-        if critical_errors:
-            raise critical_errors[0]
+        if handler.critical and critical_errors:
+            print(f"Critical Errors: {critical_errors}")
+            raise result

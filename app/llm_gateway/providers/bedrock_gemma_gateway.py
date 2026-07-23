@@ -27,7 +27,6 @@ class GemmaProvider(LLMProvider):
     def __init__(self):
         self.bedrock_client = AWS().bedrock_runtime
 
-    @trace_step("llm_runtime_generate")
     async def generate(self, request: LLMRequest, model_id: str) -> LLMResponse:
         body = self._build_request_body(request)
 
@@ -168,7 +167,6 @@ class GemmaProvider(LLMProvider):
     #                 response=stream_response
     #             )
 
-    @trace_step("llm_runtime_stream")
     async def astream(self, request: LLMRequest, model_id: str) -> AsyncIterator[LLMChunk]:
         body = self._build_request_body(request)
 

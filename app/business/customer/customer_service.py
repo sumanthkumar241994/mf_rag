@@ -6,6 +6,7 @@ from app.business.customer.gateway.customer_gateway import CustomerGateway
 from app.business.customer.mapper.customer_mapper import CustomerMapper
 from app.business.customer.models.customer import Customer
 from app.infrastructure.api_client.models import GateWayRequestContext
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.workflow.models.workflow_execution import WorkflowExecution
 from app.workflows.workflow.service.workflow_service import WorkflowService
@@ -24,6 +25,22 @@ class CustomerService(BaseWorkflowService[Customer]):
         self._customer_mapper = customer_mapper
         self._workflow_service = workflow_service
 
+    @trace_step(
+        "customer_tool",
+        output_mapper=lambda execution: (
+        {
+            "success": False,
+        }
+        if execution is None
+        else {
+            "success": True,
+            "interrupted": execution.interrupted,
+        }
+        ),
+        metadata_mapper=lambda result: {
+            "tool": "customer",
+        },
+    )
     async def retrieve(
         self,
         state: AdvisorState,

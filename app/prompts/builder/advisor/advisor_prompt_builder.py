@@ -86,6 +86,7 @@
 
 
 from app.business.advisor.models.prompt import Prompt
+from app.observability.tracing import trace_step
 from app.prompts.builder.advisor.sections.document_section import DocumentSection
 from app.prompts.builder.advisor.sections.customer_section import CustomerSection
 from app.prompts.builder.advisor.sections.goal_section import GoalSection
@@ -114,6 +115,25 @@ class AdvisorPromptBuilder:
         self._goal_section = goal_section
         self._document_section = document_section
 
+
+    @trace_step(
+        "prompt_builder",
+        input_mapper=lambda self, state: {
+            "has_customer": state.customer is not None,
+            "has_portfolio": state.portfolio_analysis is not None,
+            "has_goal": state.goal_analysis is not None,
+            "has_schemes": bool(state.schemes),
+            "has_documents": state.llm_context is not None,
+            "history_messages": len(state.history)
+        },
+        output_mapper=lambda prompt: {
+            "system_prompt_length": len(prompt.system_prompt),
+            "user_prompt_length": len(prompt.user_prompt),
+            "total_prompt_length": (
+                len(prompt.system_prompt) + len(prompt.user_prompt)
+            ),
+        },
+    )
     def build(self, state: AdvisorState) -> Prompt:
 
         sections: list[str] = []

@@ -216,7 +216,7 @@ class ConversationService:
         Persists the assistant's final response.
         """
 
-        await self._save_message(
+        message = await self._save_message(
             conversation=conversation,
             role=MessageRole.ASSISTANT,
             message_type=MessageType.TEXT,
@@ -240,6 +240,8 @@ class ConversationService:
                     conversation_id=str(conversation.id)
                 )
             )
+            
+        return message
 
     async def _save_message(
         self,

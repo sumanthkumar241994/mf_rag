@@ -5,6 +5,7 @@ from app.business.document.models.document_context import DocumentContext
 from app.business.document.models.retrieval_response import SourceResponse
 from app.business.document.services.context_builder import ContextBuilder
 from app.business.document.services.retrieval_service import RetrievalService
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.workflow.models.workflow_execution import WorkflowExecution
 from app.workflows.workflow.service.workflow_service import WorkflowService
@@ -22,6 +23,23 @@ class DocumentService(BaseWorkflowService[DocumentContext]):
         self._retrieval_service = retrieval_service
         self._context_builder = context_builder
 
+
+    @trace_step(
+        "document_search_tool",
+        output_mapper=lambda execution: (
+            {"success": False}
+            if execution is None
+            else {
+                "success": True,
+                "chunk_count": execution.result.chunk_count,
+                "source_count": len(execution.result.sources),
+                "truncated": execution.result.truncated,
+            }
+        ),
+        metadata_mapper=lambda result: {
+            "tool": "document_search",
+        },
+)
     async def retrieve(
         self,
         state: AdvisorState,

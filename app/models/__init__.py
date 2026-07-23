@@ -5,3 +5,8 @@ from .version_chunk_mapping import VersionChunkMapping
 from .conversation import Conversation
 from .message import Message
 from .conversation_summary import ConversationSummary
+from .feedback import Feedback
+from .evaluation_metric import EvaluationMetricModel
+from .evaluation import EvaluationModel
+from .feedback_issue import FeedbackIssueModel
+from .feedback_occurence import FeedbackOccurrenceModel

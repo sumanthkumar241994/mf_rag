@@ -16,6 +16,7 @@ from app.business.goal.resolver.parameter_resolver import ParameterResolver
 from app.business.common.services.base_workflow_service import (
     BaseWorkflowService,
 )
+from app.observability.tracing import trace_step
 from app.workflows.advisor.advisor_state import AdvisorState
 from app.workflows.workflow.models.goal_workflow_payload import (
     GoalWorkflowPayload,
@@ -48,6 +49,22 @@ class GoalService(BaseWorkflowService[GoalAnalysis]):
         self._analyzer = analyzer
         self._context_provider = context_provider
 
+    @trace_step(
+        "goal_tool",
+        output_mapper=lambda execution: (
+        {
+            "success": False,
+        }
+        if execution is None
+        else {
+            "success": True,
+            "interrupted": execution.interrupted,
+        }
+        ),
+        metadata_mapper=lambda result: {
+            "tool": "goal",
+        },
+    )
     async def analyze(
         self,
         state: AdvisorState,

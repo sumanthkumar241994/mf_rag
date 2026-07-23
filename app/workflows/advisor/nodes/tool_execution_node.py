@@ -15,7 +15,6 @@ class ToolExecutionNode:
     ):
         self._execution_engine = execution_engine
 
-    @trace_step("tool_execution")
     async def __call__(
         self,
         state: AdvisorState,

@@ -8,6 +8,8 @@ from app.workflows.workflow.models.workflow_interrupt import WorkflowInterrupt
 class AgentResponse:
     conversation_id: UUID
     answer: str | None = None
+
+    message_id: UUID | None = None
     
     workflow_interrupt: WorkflowInterrupt | None = None
     chunk_count: int | None = None
