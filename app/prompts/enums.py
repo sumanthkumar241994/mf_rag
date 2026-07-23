@@ -8,6 +8,8 @@ class PromptType(StrEnum):
     # Planner
     PLANNER = "planner"
 
+    FEEDBACK_INSIGHT = "feedback_insight"
+
     # Conversation
     CONVERSATION_TITLE = "conversation_title"
     CONVERSATION_SUMMARY = "conversation_summary"

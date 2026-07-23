@@ -45,6 +45,11 @@ class DeepEvalEvaluator(BaseEvaluator):
             MetricType.ANSWER_RELEVANCY,
             # MetricType.FAITHFULNESS,
             # MetricType.CONTEXTUAL_RELEVANCY,
+            # MetricType.CONTEXTUAL_PRECISION,
+            # MetricType.HALLUCINATION,
+            # MetricType.BIAS,
+            # MetricType.TOXICITY
+
         ):
             metrics.append(
                 await self._adapter.evaluate(

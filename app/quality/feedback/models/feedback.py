@@ -9,6 +9,7 @@ from app.quality.feedback.enums.feedback_signal import FeedbackSignal
 class Feedback(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    feedback_issue_id: UUID | None = None
     customer_id: str
     conversation_id: UUID
     message_id: UUID

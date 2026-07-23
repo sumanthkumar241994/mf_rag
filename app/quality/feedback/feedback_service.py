@@ -73,21 +73,22 @@ class FeedbackService:
             feedback = await self._uow.feedbacks.save(feedback)
 
             await self._uow.commit()
-
-            try:
-    
-                await self._publisher.publish(
-                    FeedbackReceivedEvent(
-                        feedback_id=str(feedback.id),
-                        customer_id=feedback.customer_id,
-                        conversation_id=str(feedback.conversation_id),
-                        message_id=str(feedback.message_id),
-                        signal=feedback.signal.value,
-                        reason=feedback.reason.value if feedback.reason else None,
+            
+            if request.signal == FeedbackSignal.NEGATIVE:
+                try:
+        
+                    await self._publisher.publish(
+                        FeedbackReceivedEvent(
+                            feedback_id=str(feedback.id),
+                            customer_id=feedback.customer_id,
+                            conversation_id=str(feedback.conversation_id),
+                            message_id=str(feedback.message_id),
+                            signal=feedback.signal.value,
+                            reason=feedback.reason.value if feedback.reason else None,
+                        )
                     )
-                )
-            except Exception as ex:
-                logger.error(f"Could not publish feedback recieved event: {str(ex)}")
+                except Exception as ex:
+                    logger.error(f"Could not publish feedback recieved event: {str(ex)}")
 
             return feedback
 

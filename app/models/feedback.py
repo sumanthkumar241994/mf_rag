@@ -62,6 +62,11 @@ class Feedback(Base):
         index=True,
     )
 
+    evaluation_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True
+    )
+
     signal: Mapped[FeedbackSignal] = mapped_column(
         Enum(FeedbackSignal, name="feedback_signal"),
         nullable=False,
@@ -87,4 +92,11 @@ class Feedback(Base):
         DateTime(timezone=True),
         server_default=func.now(), 
         onupdate=func.now()
+    )
+
+    feedback_issue_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("feedback_issues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )

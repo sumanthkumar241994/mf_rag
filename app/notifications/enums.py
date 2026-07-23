@@ -1,0 +1,6 @@
+from enum import StrEnum
+
+
+class NotificationType(StrEnum):
+    FEEDBACK_ISSUE_CREATED= 'FEEDBACK_ISSUE_CREATED'
+    FEEDBACK_ISSUE_UPDATED = 'FEEDBACK_ISSUE_UPDATED'

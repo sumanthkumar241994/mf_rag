@@ -60,7 +60,7 @@ class EvaluationMetricModel(Base):
         nullable=True,
     )
 
-    metadata: Mapped[dict[str, Any]] = mapped_column(
+    _metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,

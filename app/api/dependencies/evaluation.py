@@ -1,6 +1,9 @@
 from deepeval.metrics import AnswerRelevancyMetric, BiasMetric, ContextualPrecisionMetric, FaithfulnessMetric, HallucinationMetric, ToxicityMetric
 from deepeval.metrics.contextual_relevancy.contextual_relevancy import ContextualRelevancyMetric
 from app.api.dependencies.llm import get_llm_gateway
+from app.core.config import settings
+from app.notifications.notification_service import NotificationService
+from app.notifications.zapier_client import ZapierClient
 from app.prompts.evaluator.builder.planner_judge_prompt_builder import PlannerJudgePromptBuilder
 from app.prompts.registry import PromptRegistry
 from app.quality.evaluation.deepeval.adapter import DeepEvalAdapter
@@ -12,7 +15,9 @@ from app.quality.evaluation.evaluator.deepeval_evaluator import DeepEvalEvaluato
 from app.quality.evaluation.evaluator.latency_evaluator import LatencyEvaluator
 from app.quality.evaluation.evaluator.planner_evaluator import PlannerEvaluator
 from app.quality.evaluation.evaluator_registry import EvaluatorRegistry
+from app.quality.evaluation.issue_analyzer import IssueAnalyzer
 from app.quality.evaluation.judges.planner_judge import PlannerJudge
+from app.unit_of_work.evaluation_uow_factory import EvaluationUnitOfWorkFactory
 
 
 def get_evaluation_service() -> EvaluationService:
@@ -120,7 +125,10 @@ def get_evaluation_service() -> EvaluationService:
     # )
 
     evaluation_service = EvaluationService(
-        registry,
+        registry=registry,
+        issue_analyzer=IssueAnalyzer(),
+        uow_factory=EvaluationUnitOfWorkFactory(),
+        notification_service=NotificationService(ZapierClient(webhook_url=settings.EVALUATION_ZAPIER_WEBHOOK_URL))
     )
 
     return evaluation_service

@@ -4,13 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.feedback import Feedback as FeedbackModel
+from app.quality.feedback.enums.feedback_signal import FeedbackSignal
 from app.quality.feedback.models.feedback import Feedback
 
 
 class FeedbackRepository:
 
-    def __init__(self, session: AsyncSession):
-        self._session = session
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
     async def get_by_message(
         self,
@@ -25,13 +26,42 @@ class FeedbackRepository:
             )
         )
 
-        result = await self._session.execute(stmt)
+        result = await self.db.execute(stmt)
         model = result.scalar_one_or_none()
 
         if model is None:
             return None
 
         return Feedback.model_validate(model)
+
+    async def get_by_id(
+        self,
+        feedback_id: UUID,
+    ) -> Feedback | None:
+
+        stmt = (
+            select(FeedbackModel).where(
+                FeedbackModel.id == feedback_id,
+            )
+        )
+
+        result = await self.db.execute(stmt)
+        model = result.scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return Feedback.model_validate(model)
+
+    async def get_pending_negative_feedbacks(self):
+        stmt = select(FeedbackModel).where(
+            FeedbackModel.signal == FeedbackSignal.NEGATIVE.value,
+            FeedbackModel.evaluation_id == None
+        )
+
+        result = await self.db.execute(stmt)
+
+        return result.scalars().all()
 
     async def save(
         self,
@@ -45,12 +75,12 @@ class FeedbackRepository:
             )
         )
 
-        result = await self._session.execute(stmt)
+        result = await self.db.execute(stmt)
         model = result.scalar_one_or_none()
 
         if model is None:
             model = FeedbackModel(**feedback.model_dump())
-            self._session.add(model)
+            self.db.add(model)
         else:
             update_data = feedback.model_dump(
                 exclude={
@@ -67,7 +97,7 @@ class FeedbackRepository:
             for field, value in update_data.items():
                 setattr(model, field, value)
 
-        await self._session.flush()
-        await self._session.refresh(model)
+        await self.db.flush()
+        await self.db.refresh(model)
 
         return Feedback.model_validate(model)
