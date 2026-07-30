@@ -4,5 +4,12 @@ from app.unit_of_work.feedback_insight_uow import FeedbackInsightUnitOfWork
 class FeedbackInsightUnitOfWorkFactory:
 
     async def create(self) -> FeedbackInsightUnitOfWork:
-        session = AsyncSessionLocal()
-        return FeedbackInsightUnitOfWork(session)
+        async with AsyncSessionLocal() as session:
+            uow = FeedbackInsightUnitOfWork(session)
+
+            try:
+                yield uow
+                await uow.commit()
+            except Exception:
+                await uow.rollback()
+                raise

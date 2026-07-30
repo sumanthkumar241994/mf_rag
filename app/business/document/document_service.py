@@ -31,9 +31,9 @@ class DocumentService(BaseWorkflowService[DocumentContext]):
             if execution is None
             else {
                 "success": True,
-                "chunk_count": execution.result.chunk_count,
+                "chunk_count": execution.result.llm_context.chunk_count,
                 "source_count": len(execution.result.sources),
-                "truncated": execution.result.truncated,
+                "truncated": execution.result.llm_context.truncated,
             }
         ),
         metadata_mapper=lambda result: {

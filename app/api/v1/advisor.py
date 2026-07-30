@@ -2,10 +2,10 @@ import json
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies.advisor_agent import get_advisor_service
 from app.core.middleware.request_context_vars import trace_id_ctx
 from app.dtos.request_context import RequestContext
 
-from app.api.dependencies.advisor import get_advisor_service
 from app.api.dependencies.request_context import build_request_context
 from app.services.advisor_service import AdvisorService
 

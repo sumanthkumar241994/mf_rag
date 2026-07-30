@@ -1,22 +1,33 @@
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.business.advisor.enums.capabilities import Capability
 from app.business.advisor.enums.tool_type import ToolType
 from app.business.document.document_service import DocumentService
 from app.business.document.services.context_builder import ContextBuilder
 from app.business.document.services.retrieval_service import RetrievalService
+from app.composition.database_composition import DatabaseComposition
+from app.llm_gateway.embeddings.bedrock_titan_embedding import BedrockTitanEmbedding
+from app.repositories.chunk_repository import DocumentChunkRepository
+from app.services.document_chunk_service import DocumentChunkService
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.document_tool import DocumentTool
 from app.workflows.workflow.service.workflow_service import WorkflowService
-
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 class DocumentComposition:
     def __init__(
         self,
-        retrieval_service: RetrievalService,
+        database: DatabaseComposition,
         workflow_service: WorkflowService,
-        context_builder: ContextBuilder
     ):
-        self.retrieval_service = retrieval_service
-        self.context_builder = context_builder
+        self.context_builder = ContextBuilder()
+        self.document_chunk_service = DocumentChunkService(
+            session_factory=database.session_factory,
+        )
+        self.retrieval_service = RetrievalService(
+            embedding_client=BedrockTitanEmbedding(),
+            document_chunk_service=self.document_chunk_service
+        )
+        
         self.workflow_service = workflow_service
 
         self.document_service = DocumentService(

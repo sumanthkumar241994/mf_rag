@@ -1,9 +1,15 @@
 from doctest import Example
+from fastmcp import FastMCP
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from pydantic_settings.main import re
+from app.api.dependencies.mcp import initialize_mcp
+from app.api.dependencies.rest_api_client import get_rest_api_client
+from app.composition.business.new_customer_composition import NewCustomerComposition
+from app.composition.mcp_clients.mcp_composition import MCPComposition
 from app.core.config import settings
+from app.core.config.redis import get_redis
 from app.core.middleware import (
     register_tracing_middleware, 
     register_request_context_middleware,
@@ -12,7 +18,6 @@ from app.core.middleware import (
 )
 from app.api.router import api_router
 from app.core.database import AsyncSessionLocal, engine
-from app.api.dependencies import DBSession
 from app.observability import setup_logging
 
 from app.langfuse.client import langfuse_client
@@ -21,13 +26,6 @@ import logging
 from app.infrastructure.workflow.workflow_checkpointer import workflow_checkpointer
 
 logger = logging.getLogger(__name__)
-
-# import debugpy
-
-# debugpy.listen(("0.0.0.0", 5676))
-# print("⏳ Waiting for debugger to attach...")
-# debugpy.wait_for_client()  # Execution will pause here until debugger is attached
-# print("✅ Debugger Attached. Running Falcon App...")
 
 
 @asynccontextmanager
@@ -41,18 +39,29 @@ async def lifespan(app: FastAPI):
         logger.error("Database connection failed")
         raise
 
+    redis = get_redis()
+    rest_api_client = get_rest_api_client()
+
     _ = langfuse_client.client
 
     await workflow_checkpointer.initialize()
     logger.info("Workflow checkpointer initalized")
 
+
+
+
     app.state.workflow_checkpointer = workflow_checkpointer.checkpointer
 
+    # MCP Client
+    mcp = MCPComposition()
+    await mcp.client.startup()
+    initialize_mcp(mcp.client)
     yield
 
     await workflow_checkpointer.shutdown()
     await engine.dispose()
     langfuse_client.client.flush()
+    await mcp.client.shutdown()
     print("Shutting down...")
 
 def create_application() -> FastAPI:

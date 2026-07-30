@@ -1,22 +1,85 @@
+# app/agents/base_agent.py
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
-from app.dtos.agents.agent_request import AgentRequest
 from app.dtos.agents.agent_response import AgentResponse
-from app.enums.workflow import WorkflowType
+from app.dtos.agents.stream_event import AgentStreamEvent
+from app.dtos.request_context import RequestContext
+
 
 class BaseAgent(ABC):
+    """
+    Base contract for all agents.
 
-    workflow: WorkflowType
+    Responsible for:
+    - Creating workflow state
+    - Executing workflow
+    - Resuming workflow
+    - Streaming workflow execution
+    """
 
+    @property
     @abstractmethod
-    async def run(self, request: AgentRequest) -> AgentResponse:
+    def workflow_name(self) -> str:
+        """
+        Name used for conversation persistence.
+        Example:
+            advisor
+            investment
+        """
         raise NotImplementedError
 
     @abstractmethod
-    async def stream(self, request: AgentRequest) -> AgentResponse:
+    def create_state(
+        self,
+        request: RequestContext,
+        history: list[Any],
+        trace_id: str,
+    ) -> Any:
+        """
+        Creates the workflow state required by the agent.
+        """
         raise NotImplementedError
-    
-    
+
+    @abstractmethod
+    async def run(
+        self,
+        state: Any,
+    ) -> AgentResponse:
+        """
+        Execute the workflow.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def resume(
+        self,
+        state: Any,
+    ) -> AgentResponse:
+        """
+        Resume an interrupted workflow.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stream(
+        self,
+        state: Any,
+    ) -> AsyncIterator[AgentStreamEvent]:
+        """
+        Stream workflow execution.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def resume_stream(
+        self,
+        state: Any,
+    ) -> AsyncIterator[AgentStreamEvent]:
+        """
+        Resume and stream an interrupted workflow.
+        """
+        raise NotImplementedError

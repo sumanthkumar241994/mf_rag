@@ -21,16 +21,17 @@ from app.unit_of_work.conversation_uow_factory import ConversationUnitOfWorkFact
 def get_conversation_cache(redis: Redis = Depends(get_redis)) -> ConversationCache:
     return ConversationCache(redis)
 
-async def get_conversation_service(
-    uow: ConversationUnitOfWork = Depends(get_conversation_uow),
-    conversation_cache = Depends(get_conversation_cache)
-) -> ConversationService:
 
+def conversation_service() -> ConversationService:
     return ConversationService(
-        uow=uow,
-        cache=conversation_cache,
+        uow_factory=ConversationUnitOfWorkFactory(),
+        cache=ConversationCache(redis=get_redis()),
         publisher=SQSEventPublisher()
     )
+
+
+def get_conversation_service():
+    return conversation_service()
 
 
 def build_conversation_title_service() -> ConversationTitleService:
@@ -38,6 +39,7 @@ def build_conversation_title_service() -> ConversationTitleService:
         uow_factory=ConversationUnitOfWorkFactory(),
         llm_gateway=get_llm_gateway()
     )
+
 
 def build_conversation_summary_service() -> ConversationSummaryService:
     return ConversationSummaryService(

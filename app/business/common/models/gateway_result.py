@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from alembic.util import err
-
 T =TypeVar("T")
 
 @dataclass(slots=True, frozen=True)

@@ -1,3 +1,4 @@
+from redis.asyncio import Redis
 from app.business.advisor.enums.capabilities import Capability
 from app.business.advisor.enums.tool_type import ToolType
 from app.business.portfolio.analysis.insight.insight_generator import InsightGenerator
@@ -7,10 +8,14 @@ from app.business.portfolio.analysis.portfolio_analyzer.health_score_analyzer im
 from app.business.portfolio.analysis.portfolio_analyzer.performance_analyzer import PerformanceAnalyzer
 from app.business.portfolio.analysis.portfolio_analyzer.risk_analyzer import RiskAnalyzer
 from app.business.portfolio.analysis.recommendation.recommendation_engine import RecommendationEngine
+from app.business.portfolio.gateways.cached_portfolio_gateway import CachedPortfolioGateway
 from app.business.portfolio.gateways.falcon_portfolio_gateway import FalconPortfolioGateway
+from app.business.portfolio.gateways.portfolio_gateway import PortfolioGateway
 from app.business.portfolio.mapper.portfolio_mapper import PortfolioMapper
 from app.business.portfolio.service.portfolio_service import PortfolioService
+from app.cache.portfolio_cache import PortfolioCache
 from app.composition.workflow_composition import WorkflowComposition
+from app.infrastructure.api_client.rest_client import RestApiClient
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.portfolio_tool import PortfolioTool
 from app.workflows.workflow.service.workflow_service import WorkflowService
@@ -19,7 +24,8 @@ from app.workflows.workflow.service.workflow_service import WorkflowService
 class PortfolioComposition:
     def __init__(
         self,
-        portfolio_gateway : FalconPortfolioGateway,
+        redis: Redis,
+        rest_api_client: RestApiClient,
         workflow_service: WorkflowService
     ):  
         # Analyzers initialization
@@ -29,6 +35,11 @@ class PortfolioComposition:
         self.health_analyzer = HealthAnalyzer()
         self.insight_generator = InsightGenerator()
         self.recommendation_engine = RecommendationEngine()
+
+        self.portfolio_gateway = CachedPortfolioGateway(
+            portfolio_cache=PortfolioCache(redis),
+            portfolio_gateway=FalconPortfolioGateway(rest_api_client)
+        )
 
         # Portfolio Analyzer
         self.portfolio_analyzer = PortfolioAnalyzer(
@@ -43,7 +54,7 @@ class PortfolioComposition:
         self.portfolio_mapper = PortfolioMapper()
 
         self.portofio_service = PortfolioService(
-            portfolio_gateway=portfolio_gateway,
+            portfolio_gateway=self.portfolio_gateway,
             portfolio_mapper=self.portfolio_mapper,
             portfolio_analyzer=self.portfolio_analyzer,
             workflow_service=workflow_service

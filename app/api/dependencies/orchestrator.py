@@ -1,19 +1,24 @@
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.agents.advisor_agent import AdvisorAgent
-from app.api.dependencies.agent import get_advisor_agent
+from app.agents.planner.rule_based_agent_planner import RuleBasedAgentPlanner
+from app.api.dependencies.advisor_agent import get_advisor_agent
+from app.api.dependencies.agent_planner import get_rule_based_agent_palnner
 from app.api.dependencies.conversation import get_conversation_service
-from app.api.dependencies.database import get_db
+from app.api.dependencies.investment_agent import get_investment_agent
 from app.orchestration.orchestrator import Orchestrator
-from app.services.conversation_service import ConversationService
 
+
+_orchestrator: Orchestrator | None = None
 
 def get_orchestrator(
-    conversation_service: ConversationService=Depends(get_conversation_service), 
-    agent: AdvisorAgent = Depends(get_advisor_agent)
 ) -> Orchestrator:
-    return Orchestrator(
-        conversation_service=conversation_service,
-        agent=agent
-        )
+    global _orchestrator
+
+    if _orchestrator is None:
+        return Orchestrator(
+            conversation_service=get_conversation_service(),
+            advisor_agent=get_advisor_agent(),
+            investment_agent=get_investment_agent(),
+            planner=get_rule_based_agent_palnner()
+            )
+
+    return _orchestrator

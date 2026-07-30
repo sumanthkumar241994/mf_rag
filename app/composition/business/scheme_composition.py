@@ -2,6 +2,7 @@
 
 from app.business.advisor.enums.capabilities import Capability
 from app.business.advisor.enums.tool_type import ToolType
+from app.business.scheme.gateways.falcon_scheme_gateway import FalconSchemeGateway
 from app.business.scheme.gateways.scheme_gateway import SchemeGateway
 from app.business.scheme.mappers.scheme_mapper import SchemeMapper
 from app.business.scheme.parser.static_lookup_provider import StaticLookupProvider
@@ -21,6 +22,7 @@ from app.business.scheme.parsers.scheme_type_parser import SchemeTypeParser
 from app.business.scheme.scheme_resolver import SchemeResolver
 from app.business.scheme.scheme_service import SchemeService
 from app.composition.workflow_composition import WorkflowComposition
+from app.infrastructure.api_client.rest_client import RestApiClient
 from app.tools.definitions.tool_definition import ToolDefinition
 from app.tools.implementations.scheme_tool import SchemeTool
 from app.workflows.workflow.service.workflow_service import WorkflowService
@@ -30,10 +32,10 @@ class SchemeComposition:
 
     def __init__(
         self,
-        scheme_gateway:SchemeGateway,
+        rest_api_client:RestApiClient,
         workflow_service: WorkflowService
     ):
-
+        self.scheme_gateway = FalconSchemeGateway(rest_api_client)
         self.lookup_provider = StaticLookupProvider()
         self.tokenizer = Tokenizer()
 
@@ -71,7 +73,7 @@ class SchemeComposition:
         self.resolver = SchemeResolver()
 
         self.service = SchemeService(
-            scheme_gateway=scheme_gateway,
+            scheme_gateway=self.scheme_gateway,
             scheme_mapper=self.mapper,
             scheme_query_parser=self.query_parser,
             scheme_resolver=self.resolver,

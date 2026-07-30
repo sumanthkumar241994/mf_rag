@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import logging
 from datetime import datetime, timezone
 import trace
@@ -19,17 +20,24 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.schemas.conversation.cache_message import CacheMessage
 from app.unit_of_work.conversation_uow import ConversationUnitOfWork
+from app.unit_of_work.conversation_uow_factory import ConversationUnitOfWorkFactory
 
 logger = logging.getLogger(__name__)
 
 class ConversationService:
+
+    @asynccontextmanager
+    async def uow(self) -> ConversationUnitOfWork:
+        async with self.uow_factory.create() as uow:
+            yield uow
+
     def __init__(
         self, 
-        uow: ConversationUnitOfWork,
+        uow_factory: ConversationUnitOfWorkFactory,
         cache: ConversationCache,
         publisher: SQSEventPublisher
     ):  
-        self.uow = uow
+        self.uow_factory = uow_factory
         self.cache = cache
         self.publisher = publisher
     
@@ -112,10 +120,11 @@ class ConversationService:
             metadata=metadata
         )
 
-        conversation = await self.uow.conversations.create(conversation)
-        logger.info(f"Created conversation for {conversation.id} and workflow: {conversation.workflow}")
+        async with self.uow() as uow:
+            conversation = await uow.conversations.create(conversation)
+            logger.info(f"Created conversation for {conversation.id} and workflow: {conversation.workflow}")
 
-        return conversation
+            return conversation
 
     async def get_or_create_conversation(
         self,
@@ -125,18 +134,27 @@ class ConversationService:
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
-        conversation = await self.uow.conversations.get_by_id(conversation_id=conversation_id)
+
+     async with self.uow() as uow:
+        conversation = await uow.conversations.get_by_id(conversation_id=conversation_id)
 
         if conversation:
             return conversation
         
         logger.info(f"Creating new conversation for customer: {customer_id}")
-        return await self.create_conversation(
+
+        conversation =  self._create_conversation(
             customer_id=customer_id,
             workflow=workflow,
             title=title,
             metadata=metadata
         )
+        conversation = await uow.conversations.create(conversation)
+
+        logger.info("Created conversation %s", conversation.id)
+
+        return conversation
+
 
     async def add_user_message(
     self,
@@ -232,16 +250,17 @@ class ConversationService:
                 )
             )
 
-        pending_messages = conversation.message_count - await self.uow.summaries.get_latest_sequence(conversation.id)
+        async with self.uow() as uow:
+            pending_messages = conversation.message_count - await uow.summaries.get_latest_sequence(conversation.id)
 
-        if pending_messages >= settings.CONVERSATION_SUMMARY_INTERVAL:
-            await self.publisher.publish(
-                ConversationSummaryGenerateEvent(
-                    conversation_id=str(conversation.id)
+            if pending_messages >= settings.CONVERSATION_SUMMARY_INTERVAL:
+                await self.publisher.publish(
+                    ConversationSummaryGenerateEvent(
+                        conversation_id=str(conversation.id)
+                    )
                 )
-            )
-            
-        return message
+                
+            return message
 
     async def _save_message(
         self,
@@ -262,30 +281,31 @@ class ConversationService:
         """
         metadata = metadata or {}
 
-        sequence_number = await self.uow.conversations.allocate_message_sequence(conversation.id)
+        async with self.uow() as uow:
+            sequence_number = await uow.conversations.allocate_message_sequence(conversation.id)
 
-        message = self._create_message(
-            conversation_id=conversation.id,
-            sequence_number=sequence_number,
-            role=role,
-            content=content,
-            message_type=message_type,
-            trace_id=trace_id,
-            metadata=metadata
-        )
+            message = self._create_message(
+                conversation_id=conversation.id,
+                sequence_number=sequence_number,
+                role=role,
+                content=content,
+                message_type=message_type,
+                trace_id=trace_id,
+                metadata=metadata
+            )
 
-        message = await self.uow.messages.create(message)
+            message = await uow.messages.create(message)
 
-        await self._update_cache(
-            conversation.id,
-            role,
-            content,
-            metadata
-        )
+            await self._update_cache(
+                conversation.id,
+                role,
+                content,
+                metadata
+            )
 
-        logger.debug(f"Saved {role} message for conversation {conversation.id}")
+            logger.debug(f"Saved {role} message for conversation {conversation.id}")
 
-        return message
+            return message
 
     async def get_recent_context(
         self,
@@ -309,23 +329,24 @@ class ConversationService:
 
         logger.debug(f"Conversation cache miss for {conversation_id}")
 
-        messages = await self.uow.messages.get_recent(
-            conversation_id,
-            limit
-        )
-
-        cache_messages = [
-            CacheMessage(
-                role=message.role,
-                content=message.content,
-                metadata=message.metadata_
+        async with self.uow() as uow:
+            messages = await uow.messages.get_recent(
+                conversation_id,
+                limit
             )
-            for message in messages
-        ]
 
-        await self.cache.set_messages(conversation_id, cache_messages)
+            cache_messages = [
+                CacheMessage(
+                    role=message.role,
+                    content=message.content,
+                    metadata=message.metadata_
+                )
+                for message in messages
+            ]
 
-        return cache_messages
+            await self.cache.set_messages(conversation_id, cache_messages)
+
+            return cache_messages
 
     async def complete_conversation(
         self,
@@ -334,6 +355,7 @@ class ConversationService:
         """
         Marks the conversation as completed and clears runtime cache.
         """
-        await self.uow.conversations.complete(conversation_id)
-        await self.cache.delete(conversation_id)
-        logger.info(f"completed conversation: {conversation_id}")
+        async with self.uow() as uow:
+            await uow.conversations.complete(conversation_id)
+            await self.cache.delete(conversation_id)
+            logger.info(f"completed conversation: {conversation_id}")

@@ -12100,3 +12100,983 @@ Evaluation Service
 This sequence minimizes rework because the `ExecutionTrace` model will be based on the actual trace data you're emitting, rather than assumptions. It also keeps the evaluation platform independent of Langfuse while ensuring it has all the execution information it needs.
 
 --------------------------------
+
+
+
+## Recommended order
+
+### Phase 1 (Current)
+
+* ✅ FastAPI architecture
+* ✅ Planner
+* ✅ Tool execution
+* ✅ Workflow
+* ✅ Prompt Builder
+* ✅ Prompt Compliance
+* ⏳ LLM
+* ⏳ Response Compliance
+
+### Phase 2
+
+* Conversation persistence
+* Memory
+* Reflection
+* Feedback
+* Human-in-the-loop
+
+### Phase 3
+
+* RAGAS Evaluation
+* Golden Dataset
+* Benchmarking
+
+### Phase 4 (Architecture Readiness)
+
+This is when I'd prepare the engineering metrics document.
+
+It should include:
+
+#### AI Metrics
+
+* RAGAS Answer Relevancy
+* Faithfulness
+* Context Precision
+* Context Recall
+* Hallucination Rate
+
+#### Performance Metrics
+
+* Average latency
+* P95 latency
+* P99 latency
+* Tool execution time
+* Retrieval time
+* LLM latency
+
+#### Cost Analysis
+
+* Average input tokens
+* Average output tokens
+* Token distribution by feature
+* Cost per request
+* Cost per conversation
+* Monthly cost estimation
+* Cost optimization opportunities
+
+#### Capacity Planning
+
+* MAU assumptions
+* Requests/month
+* Peak QPS
+* Concurrent users
+* ECS sizing
+* RDS sizing
+* Redis sizing
+
+#### Infrastructure
+
+* Storage estimation
+* Vector DB size
+* S3 growth
+* Backup strategy
+
+#### Operations
+
+* SLA/SLO
+* Availability
+* Monitoring
+* Alerting
+* Disaster Recovery
+
+
+
+
+
+{'system_prompt_length': 1828, 'user_prompt_length': 7751, 'total_prompt_length': 9579}
+
+
+-----------------------------------
+
+Production Conversation
+        │
+        ▼
+Did user give feedback?
+        │
+   ┌────┴─────┐
+   ▼          ▼
+Yes          No
+ │            │
+ ▼            ▼
+Run Full     Sample 5–10%
+Evaluation   Evaluation
+ │
+ ▼
+Persist Results
+ │
+ ▼
+Analytics Dashboard
+ │
+ ▼
+Identify recurring failures
+ │
+ ▼
+Improve planner, retrieval, prompts, or models
+
+---------------------------
+
+
+I agree. At this stage, **don't over-engineer the production workflow** (feedback triggers, sampling, dashboards, etc.). Focus on building a solid, extensible evaluation framework. Once the evaluators are reliable, wiring them into production is straightforward.
+
+## I would implement them in this order
+
+### 1. ✅ LatencyEvaluator (Done)
+
+Uses:
+
+* `TraceContext.advisor_generation.first_token_latency_ms`
+
+---
+
+### 2. CostEvaluator
+
+Uses:
+
+* `TraceContext.advisor_generation.total_cost`
+* `input_tokens`
+* `output_tokens`
+
+Produces:
+
+```text
+MetricType.COST
+```
+
+---
+
+### 3. PlannerEvaluator
+
+This will be your first "intelligent" evaluator.
+
+Flow:
+
+```text
+PlannerContext
+        │
+        ▼
+Is benchmark available?
+        │
+   ┌────┴─────┐
+   ▼          ▼
+Yes          No
+ │            │
+ ▼            ▼
+Deterministic LLM Judge
+        │
+        ▼
+EvaluationMetric(s)
+```
+
+Initially, since you don't have a benchmark dataset, **always use LLM-as-a-Judge**.
+
+The judge evaluates:
+
+* Intent
+* Capabilities
+* Tool selection
+* Clarification
+* Overall routing quality
+
+It returns one or more `EvaluationMetric`s.
+
+---
+
+### 4. PromptEvaluator
+
+This should remain deterministic.
+
+Evaluate:
+
+* System prompt exists
+* User prompt exists
+* Context attached
+* Mandatory instructions present
+* Prompt length within limits
+
+No LLM required.
+
+---
+
+### 5. DeepEvalAdapter
+
+This should be one adapter that internally runs multiple DeepEval metrics.
+
+Initially, I'd enable:
+
+* Answer Relevancy
+* Faithfulness
+* Hallucination
+
+Later you can add:
+
+* Contextual Precision
+* Contextual Recall
+* Bias
+* Toxicity
+
+---
+
+# Evaluator folder
+
+I would structure it like this:
+
+```text
+evaluation/
+
+    evaluators/
+
+        base.py
+
+        latency.py
+
+        cost.py
+
+        planner.py
+
+        prompt.py
+
+        deepeval.py
+```
+
+No more evaluators than these.
+
+---
+
+# PlannerEvaluator
+
+I'd define a dedicated judge prompt.
+
+```text
+User Question
+
+Planner Output
+
+Evaluate:
+
+1. Intent correctness
+
+2. Capability selection
+
+3. Tool selection
+
+4. Clarification decision
+
+5. Overall routing
+
+Return JSON.
+```
+
+This keeps the evaluation prompt focused and easy to evolve.
+
+---
+
+# DeepEvalAdapter
+
+This adapter should convert your `EvaluationContext` into a `LLMTestCase` once and reuse it for all DeepEval metrics.
+
+```text
+EvaluationContext
+        │
+        ▼
+LLMTestCase
+        │
+        ├── Faithfulness
+        ├── Answer Relevancy
+        ├── Hallucination
+        └── ...
+```
+
+Avoid rebuilding the test case for every metric.
+
+---
+
+# Final architecture
+
+```text
+EvaluationService
+        │
+        ▼
+Registry
+        │
+        ├── LatencyEvaluator
+        ├── CostEvaluator
+        ├── PlannerEvaluator
+        ├── PromptEvaluator
+        └── DeepEvalAdapter
+```
+
+Each evaluator has a single responsibility, and the framework stays small and maintainable.
+
+## My recommendation for the next implementation
+
+I would build them in this exact sequence:
+
+1. **CostEvaluator** (10–15 minutes)
+2. **PromptEvaluator** (deterministic, simple)
+3. **PlannerEvaluator** (introduce LLM-as-a-Judge infrastructure)
+4. **DeepEvalAdapter** (reuse the same LLM evaluation infrastructure where appropriate)
+
+The **PlannerEvaluator** is the key milestone because it establishes the LLM-as-a-Judge pattern you'll be able to reuse for other evaluation scenarios beyond DeepEval.
+
+------------------------------------
+
+I agree with that prioritization overall. Given the architecture you've built so far, I'd make one adjustment: **don't build these as separate features**. Build them as a single **Governance & Audit Framework** that every component uses automatically.
+
+Based on your current project, here's how I would organize it.
+
+---
+
+# Governance Layer
+
+```
+                    User Request
+                         │
+                         ▼
+                 Request Context
+                         │
+         ┌───────────────┴───────────────┐
+         │                               │
+         ▼                               ▼
+    Audit Manager                 Trace Manager
+         │                               │
+         ├──────────────┬────────────────┤
+         ▼              ▼                ▼
+ Decision Log     Audit Events     Lineage Graph
+         │              │                │
+         └──────────────┴────────────────┘
+                        │
+                  Postgres JSONB
+```
+
+Every service publishes governance information instead of writing directly to multiple tables.
+
+---
+
+# 1. AuditEvent (Foundation)
+
+Rather than every module implementing its own audit tables, define one standard event.
+
+```python
+AuditEvent
+
+id
+timestamp
+
+trace_id
+correlation_id
+conversation_id
+customer_id
+
+event_type
+
+component
+
+status
+
+duration_ms
+
+payload
+```
+
+Examples:
+
+```
+PLANNER_STARTED
+
+PLANNER_COMPLETED
+
+TOOL_STARTED
+
+TOOL_COMPLETED
+
+PROMPT_RENDERED
+
+LLM_STARTED
+
+LLM_COMPLETED
+
+FEEDBACK_RECEIVED
+
+ISSUE_CREATED
+
+JIRA_CREATED
+
+EVALUATION_COMPLETED
+```
+
+Every node in LangGraph emits one or more of these.
+
+---
+
+# 2. Decision Log
+
+This is separate from audit events because it's about *why*, not *what*.
+
+Example:
+
+```text
+Decision
+
+Planner
+
+Reason:
+Capability=Portfolio
+
+Intent=Recommendation
+
+Confidence=0.94
+
+Alternatives
+
+Goal Tool
+Rejected
+
+Reason:
+User didn't ask about goals
+```
+
+This becomes invaluable when someone asks:
+
+> Why didn't the advisor recommend SIP?
+
+---
+
+# 3. Prompt Snapshot
+
+Store the exact prompt that reached the LLM.
+
+Not just:
+
+```
+advisor_v5
+```
+
+Store:
+
+```
+Prompt Name
+
+Version
+
+Rendered Prompt
+
+Variables
+
+Hash
+```
+
+For example:
+
+```
+advisor_v5
+
+Version=5
+
+Rendered Prompt
+
+Hash
+```
+
+Months later, you can replay the exact request.
+
+---
+
+# 4. Context Snapshot
+
+Don't only store retrieved chunks.
+
+Store the final context after:
+
+* retrieval
+* reranking
+* filtering
+* truncation
+* formatting
+
+Example:
+
+```
+Chunks Retrieved
+
+↓
+
+12
+
+↓
+
+Reranked
+
+↓
+
+8
+
+↓
+
+Truncated
+
+↓
+
+6
+
+↓
+
+Final Context
+```
+
+This is the actual input the model received.
+
+---
+
+# 5. Tool Audit
+
+Every tool should emit a normalized result.
+
+Example:
+
+```
+Tool
+
+Portfolio
+
+Input
+
+customer_id
+
+Output
+
+Portfolio Retrieved
+
+Records
+
+12
+
+Latency
+
+310ms
+
+Status
+
+Success
+```
+
+Avoid storing full payloads unless required. Store hashes or summaries for large or sensitive data.
+
+---
+
+# 6. Model Governance
+
+Create one reusable metadata structure for every LLM invocation.
+
+```
+Provider
+
+AWS Bedrock
+
+Model
+
+Claude Sonnet
+
+Version
+
+Temperature
+
+Max Tokens
+
+Stop Reason
+
+Input Tokens
+
+Output Tokens
+
+Latency
+
+Estimated Cost
+
+Retry Count
+```
+
+This also supports capacity planning and cost reporting.
+
+---
+
+# 7. Data Lineage
+
+One of the strongest enterprise capabilities is being able to reconstruct the entire execution path from a single trace.
+
+```
+User Query
+    │
+    ▼
+Planner
+    │
+    ▼
+Portfolio Tool
+    │
+    ▼
+Document Retrieval
+    │
+    ▼
+Context Builder
+    │
+    ▼
+Prompt Renderer
+    │
+    ▼
+LLM
+    │
+    ▼
+Guardrails
+    │
+    ▼
+Final Response
+    │
+    ▼
+Feedback
+    │
+    ▼
+Issue
+    │
+    ▼
+Jira
+```
+
+Because every step shares the same `trace_id`, reconstruction becomes straightforward.
+
+---
+
+# 8. Configuration Snapshot
+
+This is often overlooked but critical for reproducibility.
+
+Capture the effective runtime configuration for each request, for example:
+
+```json
+{
+  "planner": "llm",
+  "reflection": false,
+  "guardrails": true,
+  "retrieval_top_k": 10,
+  "reranker": "bge-reranker-v2",
+  "embedding_model": "Titan v2"
+}
+```
+
+Without this, replaying historical executions is difficult after configuration changes.
+
+---
+
+# 9. Governance Package Structure
+
+Given your project organization, I'd introduce a dedicated package:
+
+```
+app/
+    governance/
+        audit/
+            manager.py
+            publisher.py
+            repository.py
+
+        decisions/
+            decision_logger.py
+
+        lineage/
+            lineage_builder.py
+
+        snapshots/
+            prompt_snapshot.py
+            context_snapshot.py
+
+        models/
+            audit_event.py
+            decision.py
+            prompt_snapshot.py
+            context_snapshot.py
+            lineage.py
+
+        governance_service.py
+```
+
+Then every LangGraph node interacts with the governance layer rather than implementing its own persistence logic.
+
+---
+
+# Suggested Implementation Order
+
+I would build these in this sequence:
+
+| Priority | Component              | Why                                                          |
+| -------- | ---------------------- | ------------------------------------------------------------ |
+| ⭐⭐⭐⭐⭐    | Audit Events           | Provides a unified evidence stream for all execution stages. |
+| ⭐⭐⭐⭐⭐    | Prompt Snapshot        | Makes LLM outputs reproducible.                              |
+| ⭐⭐⭐⭐⭐    | Context Snapshot       | Captures the exact context provided to the model.            |
+| ⭐⭐⭐⭐☆    | Tool Audit             | Standardizes tool execution records.                         |
+| ⭐⭐⭐⭐☆    | Decision Log           | Records reasoning behind orchestration choices.              |
+| ⭐⭐⭐⭐☆    | Model Governance       | Tracks model metadata, usage, latency, and cost.             |
+| ⭐⭐⭐☆☆    | Configuration Snapshot | Enables reliable replay after configuration changes.         |
+| ⭐⭐⭐☆☆    | Lineage Builder        | Builds end-to-end execution views from existing audit data.  |
+
+## One architectural recommendation
+
+Since you're already using **LangGraph**, **Langfuse**, **FastAPI**, and a centralized `RequestContext` with `trace_id`/`correlation_id`, I wouldn't create audit records manually throughout the codebase. Instead, introduce a single **GovernanceManager** that each node calls with lightweight events (e.g., `record_tool_execution()`, `record_prompt_snapshot()`, `record_decision()`). That manager can fan out to persistence, lineage tracking, and future integrations without coupling your business logic to audit concerns.
+
+With that in place, your platform would be much closer to what enterprises expect for AI governance: explainability, reproducibility, traceability, and auditability across the entire request lifecycle.
+
+
+-------------------------
+
+Phase 1: Multi-Agent Foundation
+✅ BaseAgent
+✅ AdvisorAgent
+✅ InvestmentAgent
+⬜ AgentType
+⬜ AgentPlanner (deterministic)
+⬜ ConversationOrchestrator integration
+Phase 2: Interrupt & Resume
+⬜ Common WorkflowInterrupt
+⬜ Common WorkflowCheckpoint
+⬜ Resume path in orchestrator
+⬜ USER_CONFIRMATION interrupt type
+Phase 3: Composite Support
+⬜ COMPOSITE route
+⬜ Advisor executes first
+⬜ Creates checkpoint for Investment Agent
+⬜ Resume directly into Investment Agent (skip router)
+Phase 4: Investment Expansion
+⬜ Investment Planner
+⬜ Purchase Workflow
+⬜ Redemption Workflow
+⬜ Workflow Registry
+
+---------------------------
+
+✅ BaseAgent
+✅ AdvisorAgent
+✅ InvestmentAgent
+✅ AgentType
+✅ RuleBasedAgentPlanner
+
+⬜ Conversation Orchestrator Integration      ⭐ Next
+
+⬜ Common WorkflowInterrupt
+
+⬜ WorkflowCheckpoint
+
+⬜ Resume Flow
+
+⬜ Composite Flow
+
+⬜ Purchase Workflow
+
+⬜ Investment Planner
+
+⬜ Workflow Registry
+
+⬜ Suggestions
+
+⬜ LLM Agent Planner
+
+
+"3 validation errors for call[retrieve_customer]\nrequest.trace_id\n  Field required [type=missing, input_value={'query': 'Invest 10,000 ...'workflow_resume': None}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nrequest.request\n  Field required [type=missing, input_value={'query': 'Invest 10,000 ...'workflow_resume': None}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ntrace_id\n  Unexpected keyword argument [type=unexpected_keyword_argument, input_value='04de5b4c1c2eb8d99cdf30ce835462f4', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/unexpected_keyword_argument"
+
+
+                 Conversation
+
+                     │
+                     ▼
+               Advisor Agent
+                     │
+         "Need nominee update"
+                     │
+                     ▼
+             Execution Agent
+             UPDATE_NOMINEE
+                     │
+                     ▼
+            Nominee Updated
+                     │
+                     ▼
+              Advisor Agent
+                     │
+          Resume Investment
+                     │
+                     ▼
+            Scheme Discussion
+                     │
+                     ▼
+          User says "Proceed"
+                     │
+                     ▼
+             Execution Agent
+          CREATE_INVESTMENT
+
+
+
+Yes. I think this is the most natural customer journey. The key is that **scheme clarification should happen only after the customer becomes eligible**.
+
+I would model it like this:
+
+```text
+User
+│
+▼
+"I want to invest ₹10,000 in Parag Parikh Index Fund."
+│
+▼
+Advisor Agent
+│
+├── Retrieve Customer
+├── Check Eligibility
+│
+└── Nominee Missing
+      │
+      ▼
+"I can help you invest, but you need to add a nominee first."
+      │
+      ▼
+User: "Okay, update nominee."
+      │
+      ▼
+Execution Agent
+      │
+├── Collect nominee details
+├── Confirm nominee
+├── OTP
+└── Update nominee
+      │
+      ▼
+Advisor Agent resumes
+      │
+├── Refresh customer
+├── Eligibility ✔
+│
+▼
+Resolve Scheme
+│
+▼
+"I found the following scheme:
+
+Parag Parikh Nifty 50 Index Fund
+AMC: PPFAS Mutual Fund
+Category: Index Fund
+Risk: Very High
+Minimum Investment: ₹1,000
+
+Is this the scheme you want?"
+```
+
+Now the customer can have a normal advisory conversation.
+
+```
+Customer:
+What's the expense ratio?
+
+Advisor:
+...
+
+Customer:
+Who is the fund manager?
+
+Advisor:
+...
+
+Customer:
+Compare with UTI Index Fund.
+
+Advisor:
+...
+```
+
+When the customer finally says:
+
+> Yes, this is the scheme. Proceed.
+
+Only then does the advisor prepare the order.
+
+```
+Advisor
+│
+▼
+Create Order Draft
+
+₹10,000
+Parag Parikh Nifty 50 Index Fund
+Direct Growth
+Bank: HDFC ****1234
+Nominee: Available
+```
+
+Then ask for one final confirmation.
+
+```
+You are about to invest ₹10,000 in:
+
+• Scheme: Parag Parikh Nifty 50 Index Fund
+• Plan: Direct Growth
+• Amount: ₹10,000
+• Bank: HDFC ****1234
+
+Do you want to place this order?
+```
+
+If the user confirms:
+
+```
+Execution Agent
+│
+├── Create Investment
+├── OTP
+├── Verify OTP
+├── Payment
+└── Complete
+```
+
+or
+
+```
+Execution Agent
+│
+├── OTP Failed
+│     └── Retry OTP
+│
+├── Payment Failed
+│     └── Retry Payment
+│
+└── Completed
+```
+
+## I would split responsibilities like this
+
+### Advisor Agent
+
+* Retrieve customer
+* Check investment eligibility
+* Resume after nominee/bank/KYC updates
+* Resolve scheme
+* Answer scheme questions
+* Compare schemes
+* Prepare order draft
+* Obtain final investment confirmation
+
+### Execution Agent
+
+* Update nominee
+* Update bank
+* Complete KYC
+* Create investment
+* OTP verification
+* Payment handling
+* Order completion
+
+This separation keeps the advisor focused on helping the customer make an informed decision, while the execution agent focuses on completing transactional operations. It also allows the advisor to pause, delegate operational tasks, and then resume the original investment journey without losing context.
+
+

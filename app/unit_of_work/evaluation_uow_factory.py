@@ -5,5 +5,12 @@ from app.unit_of_work.evaluation_uow import EvaluationUnitOfWork
 class EvaluationUnitOfWorkFactory:
 
     async def create(self) -> EvaluationUnitOfWork:
-        session = AsyncSessionLocal()
-        return EvaluationUnitOfWork(session)
+        async with AsyncSessionLocal() as session:
+            uow = EvaluationUnitOfWork(session)
+
+            try:
+                yield uow
+                await uow.commit()
+            except Exception:
+                await uow.rollback()
+                raise

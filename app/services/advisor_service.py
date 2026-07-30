@@ -69,14 +69,14 @@ class AdvisorService:
         self,
         orchestrator: Orchestrator
     ):
-        self.orchestrator = orchestrator
+        self._orchestrator = orchestrator
     
     @trace_workflow("advisor_chat")
     async def chat(
         self,
         request: RequestContext
     ) -> AgentResponse:
-        return await self.orchestrator.run(request=request)
+        return await self._orchestrator.run(request=request)
     
     @trace_workflow(
         "advisor_stream_chat",
@@ -90,6 +90,5 @@ class AdvisorService:
         self,
         request: RequestContext
     ) -> AsyncIterator[AgentStreamEvent]:
-        print(f"stream request: {request}")
-        async for token in self.orchestrator.stream(request=request):
+        async for token in self._orchestrator.stream(request=request):
             yield token
