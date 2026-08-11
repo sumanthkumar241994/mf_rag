@@ -1,3 +1,4 @@
+from unicodedata import category
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.ai.guardrails.deterministic.validators.base import GuardRailValidator
 from app.ai.guardrails.llm.llm_guard_service import LLMGuardService
@@ -30,6 +31,7 @@ class GuardRailService:
             {
                 "allowed": False,
                 "reason": result.reason,
+                "category": result.category,
                 "response": result.response,
             }
             if not result.allowed

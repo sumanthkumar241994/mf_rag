@@ -10,3 +10,7 @@ class KYC(InvestmentBaseModel):
     kra_name: str | None = None
     pan_updated: bool = False
     pan_documents_uploaded: bool = False
+
+    @property
+    def can_invest(self):
+        return self.status == '07'

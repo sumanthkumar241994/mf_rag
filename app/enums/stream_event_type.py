@@ -17,6 +17,7 @@ class StreamEventType(StrEnum):
     PROMPT_END = 'prompt_end'
 
     WORKFLOW_INTERRUPT = 'workflow_interrupt'
+    WORKFLOW_COMPLETED = 'workflow_completed'
 
 
 

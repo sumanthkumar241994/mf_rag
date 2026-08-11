@@ -3,7 +3,7 @@
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.ai.guardrails.deterministic.validators.base import GuardRailValidator
 from app.dtos.request_context import RequestContext
-
+from app.ai.guardrails.enums import GuardRailCategory
 
 class DomainValidator(GuardRailValidator):
     """
@@ -55,6 +55,11 @@ class DomainValidator(GuardRailValidator):
         request_context: RequestContext,
     ) -> GuardRailResult:
 
+        if request_context.workflow_resume is not None:
+            return GuardRailResult(
+                allowed=True,
+            )
+
         query = request_context.query.lower()
 
         if any(keyword in query for keyword in self.DOMAIN_KEYWORDS):
@@ -62,6 +67,8 @@ class DomainValidator(GuardRailValidator):
 
         return GuardRailResult(
             allowed=False,
+            category=GuardRailCategory.DOMAIN.value,
+            validator="Domain Validator",
             reason="OUT_OF_DOMAIN",
             response=(
                 "I'm designed to help with mutual funds, investments, SIPs, "

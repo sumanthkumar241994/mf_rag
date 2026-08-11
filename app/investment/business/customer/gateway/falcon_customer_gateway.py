@@ -11,6 +11,8 @@ from app.infrastructure.api_client.exceptions import (
 )
 from app.investment.base.models import GatewayResult
 from app.investment.business.customer.gateway.customer_gateway import CustomerGateway
+from app.investment.business.customer.models.fatca import Fatca
+from app.investment.business.customer.models.nominee import Nominee
 from app.investment.common.enums.gateway_error import GatewayErrorCode
 
 
@@ -33,6 +35,36 @@ class FalconCustomerGateway(CustomerGateway):
 
         except Exception as ex:
             return self._handle_exception(ex, operation='retrieve customer')
+
+    async def update_nominee(self, nominee: Nominee, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
+        try:
+            response = await self._api_client.post(
+                url=self.CUSTOMER_ENDPOINT,
+                body=nominee.model_dump(mode='json'),
+                options=RequestOptions(
+                    context=context,
+                ),
+            )
+
+            return GatewayResult.ok(response)
+
+        except Exception as ex:
+            return self._handle_exception(ex, operation='update nominee')
+
+    async def update_fatca(self, fatca: Fatca, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
+        try:
+            response = await self._api_client.post(
+                url=self.CUSTOMER_ENDPOINT,
+                body=fatca.model_dump(mode='json'),
+                options=RequestOptions(
+                    context=context,
+                ),
+            )
+
+            return GatewayResult.ok(response)
+
+        except Exception as ex:
+            return self._handle_exception(ex, operation='update fatca')
 
     
     def _handle_exception(

@@ -73,6 +73,14 @@ class ConversationRepository:
     #     conversation.last_message_at = datetime.now(timezone.utc)
     #     await self.db.flush()
 
+    async def update_workflow(self, conversation_id: UUID, workflow: str | None):
+        stmt = update(Conversation).where(
+            Conversation.id == conversation_id
+            ).values(
+                workflow=workflow, 
+            )
+        await self.db.execute(stmt)
+
     async def complete(self, conversation_id: UUID):
         stmt = update(Conversation).where(
             Conversation.id == conversation_id

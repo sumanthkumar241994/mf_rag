@@ -32,24 +32,27 @@ class AnthropicProvider(LLMProvider):
 
         latency_ms = round((time.perf_counter() - start_time)*1000)
 
-        response_body = json.loads(response['body'].read())
-        logger.info(f"Gemma API Response: {response_body}")
-        choice = response_body['choices'][0]
-        answer = choice['message']['content']
-        usage = response_body['usage']
+        response_body = json.loads(response["body"].read())
+        logger.info("Anthropic API Response: %s", response_body)
+
+        content = response_body.get("content", [])
+
+        answer = "".join(block.get("text", "") for block in content if block.get("type") == "text")
+
+        usage = response_body.get("usage", {})
 
         return LLMResponse(
-            answer=answer, 
+            answer=answer,
             usage=LLMUsage(
-                input_tokens=usage['prompt_tokens'],
-                output_tokens=usage['completion_tokens'],
-                total_tokens= usage['total_tokens']
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
+                total_tokens=(usage.get("input_tokens", 0) + usage.get("output_tokens", 0)),
             ),
-            metrics = LLMMetrics(
-                model=self.MODEL_ID,
+            metrics=LLMMetrics(
+                model=model_id,
                 latency_ms=latency_ms,
-                finish_reason=choice.get('finish_reason')
-            )
+                finish_reason=response_body.get("stop_reason"),
+            ),
         )
 
 

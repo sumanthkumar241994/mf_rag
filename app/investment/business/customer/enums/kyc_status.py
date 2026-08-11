@@ -35,5 +35,7 @@ class KYCStatus(BaseEnum):
         }[self]
 
     @property
-    def can_invest(self) -> bool:
-        return self is self.VALIDATED
+    def is_completed(self) -> bool:
+        return self in (
+            self.VALIDATED,
+        )   

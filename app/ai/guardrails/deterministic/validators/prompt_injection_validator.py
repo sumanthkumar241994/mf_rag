@@ -1,6 +1,11 @@
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.ai.guardrails.deterministic.validators.base import GuardRailValidator
+from app.ai.guardrails.enums import GuardRailCategory
 from app.dtos.request_context import RequestContext
+
+
+import json
+from collections.abc import Mapping, Sequence
 
 
 class PromptInjectionValidator(GuardRailValidator):
@@ -39,19 +44,71 @@ class PromptInjectionValidator(GuardRailValidator):
         request_context: RequestContext,
     ) -> GuardRailResult:
 
-        query = request_context.query.lower()
+        texts: list[str] = []
 
-        for pattern in self.BLOCKED_PATTERNS:
+        #
+        # Initial user query
+        #
+        if request_context.query:
+            texts.append(request_context.query)
 
-            if pattern in query:
-
-                return GuardRailResult(
-                    allowed=False,
-                    reason="PROMPT_INJECTION",
-                    response=(
-                        "I can't process requests that attempt to modify "
-                        "or bypass my operating instructions."
-                    ),
+        #
+        # Workflow resume
+        #
+        if request_context.workflow_resume is not None:
+            texts.extend(
+                self._extract_strings(
+                    request_context.workflow_resume,
                 )
+            )
 
-        return GuardRailResult(allowed=True)
+        for text in texts:
+            lowered = text.lower()
+
+            for pattern in self.BLOCKED_PATTERNS:
+                if pattern in lowered:
+                    return GuardRailResult(
+                        allowed=False,
+                        reason="PROMPT_INJECTION",
+                        category=GuardRailCategory.PROMPT_INJECTION.value,
+                        response=(
+                            "I can't process requests that attempt to modify "
+                            "or bypass my operating instructions."
+                        ),
+                    )
+
+        return GuardRailResult(
+            allowed=True,
+        )
+
+    def _extract_strings(
+        self,
+        value,
+    ) -> list[str]:
+
+        if value is None:
+            return []
+
+        if isinstance(value, str):
+            return [value]
+
+        if isinstance(value, Mapping):
+            result: list[str] = []
+            for v in value.values():
+                result.extend(
+                    self._extract_strings(v)
+                )
+            return result
+
+        if (
+            isinstance(value, Sequence)
+            and not isinstance(value, (str, bytes))
+        ):
+            result: list[str] = []
+            for item in value:
+                result.extend(
+                    self._extract_strings(item)
+                )
+            return result
+
+        return []

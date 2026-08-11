@@ -13079,4 +13079,555 @@ Execution Agent
 
 This separation keeps the advisor focused on helping the customer make an informed decision, while the execution agent focuses on completing transactional operations. It also allows the advisor to pause, delegate operational tasks, and then resume the original investment journey without losing context.
 
+------------------------------------
+
+ConversationOrchestrator
+        │
+        ▼
+ RequestRouter
+        │
+   RouteResult
+        │
+ ┌───────────────┐
+ │               │
+ ▼               ▼
+Advisor      Investment
+ │               │
+Planner     ExecutionPlanner
+ │               │
+Capabilities  NextAction
+ │               │
+Tools       ActionExecutor
+
+
+-----------
+
+InvestmentAgent
+    ├── Invest
+    ├── Redeem
+    ├── Switch
+    ├── SIP
+    ├── STP
+    ├── SWP
+    ├── Update Nominee
+    ├── Update Bank
+    ├── Complete KYC
+    ├── FATCA
+    ├── Risk Profile
+    ├── Download Statement
+    └── Any customer operation
+
+
+-----------------------------
+
+                    InvestmentAgent
+                           │
+                           ▼
+                  Build Execution Goal
+                           │
+                           ▼
+                  InvestmentState
+                           │
+                           ▼
+                      StateGraph
+                           │
+                           ▼
+                 Execution Planner
+                           │
+                    returns NextAction
+                           │
+                           ▼
+                    Action Executor
+                           │
+          ┌────────────────┼──────────────────┐
+          │                │                  │
+          ▼                ▼                  ▼
+   Customer Tool    Advisor Delegate     Transaction Tool
+          │                │                  │
+          └────────────────┼──────────────────┘
+                           │
+                     Update State
+                           │
+                     Execution Planner
+                           │
+                 Completed / Interrupt
+
+
+-------------------------------
+
+
+I think we should build this in **business capability order**, not graph order. That way every step leaves the architecture in a working state.
+
+## Goal
+
+Support this complete scenario:
+
+> **"Invest ₹10,000 in PPFAS."**
+
+where, if nominee is incomplete:
+
+```text
+Investment
+    ↓
+Check Customer
+    ↓
+Nominee Missing
+    ↓
+Interrupt
+    ↓
+Resume
+    ↓
+Update Nominee
+    ↓
+Create Order
+    ↓
+OTP
+    ↓
+Submit
+    ↓
+Complete
+```
+
+---
+
+# Phase 1 - Execution Goal
+
+### 1. Create `ExecutionGoal`
+
+```python
+class ExecutionGoal(BaseModel):
+    operation: OperationType
+    payload: dict[str, Any]
+```
+
+Example
+
+```python
+ExecutionGoal(
+    operation=OperationType.INVEST,
+    payload={
+        "scheme": "PPFAS",
+        "amount": 10000,
+    },
+)
+```
+
+---
+
+### 2. Create `ExecutionGoalBuilder`
+
+Initially deterministic.
+
+```text
+query
+
+↓
+
+ExecutionGoal
+```
+
+No planner yet.
+
+---
+
+### 3. InvestmentState
+
+Add
+
+```python
+execution_goal: ExecutionGoal
+```
+
+---
+
+# Phase 2 - Planner
+
+### 4. Create `ExecutionPlanner`
+
+Interface
+
+```python
+class ExecutionPlanner:
+
+    async def plan(
+        self,
+        state: InvestmentState,
+    ) -> NextAction:
+        ...
+```
+
+---
+
+### 5. Create `NextAction`
+
+```python
+class NextAction(BaseModel):
+    action: ActionType
+    payload: dict[str, Any] = {}
+```
+
+---
+
+### 6. Create `ActionType`
+
+Initially only
+
+```text
+CHECK_CUSTOMER
+
+UPDATE_NOMINEE
+
+CREATE_ORDER
+
+WAIT_FOR_OTP
+
+SUBMIT_ORDER
+
+COMPLETE
+```
+
+Don't add redeem etc. yet.
+
+---
+
+# Phase 3 - Action Executor
+
+### 7. Create `ActionExecutor`
+
+Instead of graph nodes knowing business,
+
+they simply execute
+
+```text
+CHECK_CUSTOMER
+```
+
+↓
+
+Customer Tool
+
+---
+
+```text
+UPDATE_NOMINEE
+```
+
+↓
+
+Nominee Tool
+
+---
+
+```text
+CREATE_ORDER
+```
+
+↓
+
+Investment Tool
+
+---
+
+# Phase 4 - Planner Logic
+
+Implement deterministic rules.
+
+```
+Customer loaded?
+
+↓
+
+CHECK_CUSTOMER
+```
+
+---
+
+```
+Nominee missing?
+
+↓
+
+UPDATE_NOMINEE
+```
+
+---
+
+```
+Order missing?
+
+↓
+
+CREATE_ORDER
+```
+
+---
+
+```
+OTP pending?
+
+↓
+
+WAIT_FOR_OTP
+```
+
+---
+
+```
+Ready?
+
+↓
+
+SUBMIT_ORDER
+```
+
+---
+
+```
+Done?
+
+↓
+
+COMPLETE
+```
+
+---
+
+# Phase 5 - LangGraph
+
+Replace
+
+```text
+START
+
+↓
+
+Customer
+
+↓
+
+END
+```
+
+with
+
+```text
+START
+
+↓
+
+Planner
+
+↓
+
+Executor
+
+↓
+
+Planner
+
+↓
+
+Executor
+
+↓
+
+END
+```
+
+The graph never changes again.
+
+---
+
+# Phase 6 - Interrupt / Resume
+
+`WAIT_FOR_OTP`
+
+↓
+
+WorkflowInterrupt
+
+↓
+
+Resume
+
+↓
+
+Planner
+
+↓
+
+SUBMIT_ORDER
+
+---
+
+Nominee
+
+↓
+
+WorkflowInterrupt
+
+↓
+
+Resume
+
+↓
+
+Planner
+
+↓
+
+CREATE_ORDER
+
+---
+
+# Phase 7 - Advisor Delegation
+
+Add one new action.
+
+```text
+DELEGATE_ADVISOR
+```
+
+Planner
+
+↓
+
+Need recommendation
+
+↓
+
+Advisor Agent
+
+↓
+
+Continue
+
+No graph change.
+
+---
+
+# Final Result
+
+At the end of this work, the Investment Agent will support:
+
+* ✅ Customer validation
+* ✅ Nominee completion
+* ✅ Investment order creation
+* ✅ OTP interrupt/resume
+* ✅ Advisor delegation
+* ✅ Persistent execution state
+* ✅ Extensible execution planner
+
+without requiring any future changes to the orchestrator or the LangGraph structure.
+
+---
+
+## One small refinement to the order
+
+I would slightly reorder the implementation to minimize rework:
+
+1. ✅ `ExecutionGoal`
+2. ✅ `ExecutionGoalBuilder`
+3. ✅ Add `execution_goal` to `InvestmentState`
+4. ✅ `ActionType`
+5. ✅ `NextAction`
+6. ✅ `ExecutionPlanner`
+7. ✅ `ActionExecutor`
+8. ✅ Replace the current graph with the planner → executor loop
+9. ✅ Implement action handlers in this order:
+
+   * `CHECK_CUSTOMER`
+   * `UPDATE_NOMINEE`
+   * `CREATE_ORDER`
+   * `WAIT_FOR_OTP`
+   * `SUBMIT_ORDER`
+10. ✅ Add `DELEGATE_ADVISOR`
+
+This order lets you verify each building block before it's used by the next one, while keeping the overall architecture aligned with the final design.
+
+
+------------------------------------
+
+
+Planner
+
+↓
+
+CustomerStage
+        │
+        ▼
+CHECK_CUSTOMER
+        │
+        ▼
+CustomerHandler
+        │
+        ▼
+Customer Loaded
+
+↓
+
+EligibilityStage
+        │
+        ▼
+EligibilityService
+        │
+        ├── Eligible
+        │         ▼
+        │   InvestmentStage
+        │
+        └── Not Eligible
+                  ▼
+          WorkflowInterrupt
+
+↓
+
+InvestmentStage
+        │
+        ▼
+CREATE_INVESTMENT
+        │
+        ▼
+InvestmentHandler
+
+------------------------
+
+1. Eligibility
+       ↓
+2. Pending requirements
+       ↓
+   interrupt()
+       ↓
+3. User clicks Continue
+       ↓
+4. Nominee Data Collection
+       ↓
+   interrupt()
+       ↓
+5. User submits nominee details
+       ↓
+6. Create UpdateNomineeExecutionGoal
+       ↓
+7. VerificationNode
+       ↓
+   send OTP
+       ↓
+   interrupt()
+       ↓
+8. User submits OTP
+       ↓
+9. VerificationNode verifies OTP
+       ↓
+10. CustomerActionStage
+       ↓
+11. NomineeUpdateActionHandler
+       ↓
+12. Customer refresh
+       ↓
+13. Eligibility
+
+---------------------------------
+
+
+
+
 

@@ -5,10 +5,10 @@ from app.dtos.agents.agent_request import AgentRequest
 
 
 
-class AgentPlanner(ABC):
+class AgentClassifier(ABC):
 
     @abstractmethod
-    async def plan(
+    async def classify(
         self,
         request: AgentRequest,
     ) -> AgentPlan:

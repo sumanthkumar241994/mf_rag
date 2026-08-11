@@ -10,7 +10,6 @@ from app.business.advisor.models.capability_match import CapabilityMatch
 class PlannerResult:
     intent: Intent
     capabilities: list[CapabilityMatch] = field(default_factory=list)
-    agent: AgentType = AgentType.ADVISOR.value
     selected_tools: list[ToolType] = field(default_factory=list)
     confidence: float = 1.0
     reasoning: str | None = None

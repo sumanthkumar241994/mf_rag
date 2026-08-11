@@ -123,7 +123,7 @@ class AdvisorWorkflow:
 
         workflow = StateGraph(AdvisorState)
 
-        workflow.add_node("guardrails", self._guardrail_node)
+        # workflow.add_node("guardrails", self._guardrail_node)
         workflow.add_node("planner", self._planner_node)
         workflow.add_node("tool_execution", self._tool_execution_node)
         workflow.add_node("workflow", self._workflow_node)
@@ -132,15 +132,15 @@ class AdvisorWorkflow:
         workflow.add_node("tool_failure", self._tool_failure_node)
         workflow.add_node("llm", self._llm_node)
 
-        workflow.add_edge(START, "guardrails")
-        workflow.add_conditional_edges(
-            "guardrails",
-            self._route_after_guardrails,
-            {
-                WorkflowDecision.CONTINUE.value: "planner",
-                WorkflowDecision.END.value: END,
-            },
-        )
+        workflow.add_edge(START, "planner")
+        # workflow.add_conditional_edges(
+        #     "guardrails",
+        #     self._route_after_guardrails,
+        #     {
+        #         WorkflowDecision.CONTINUE.value: "planner",
+        #         WorkflowDecision.END.value: END,
+        #     },
+        # )
         workflow.add_edge("planner", "tool_execution")
         workflow.add_conditional_edges(
             "tool_execution", 

@@ -44,7 +44,7 @@ class ConversationService:
     def _create_conversation(
         self,
         customer_id: str,
-        workflow: str,
+        workflow: str | None,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
@@ -105,7 +105,7 @@ class ConversationService:
     async def create_conversation(
         self,
         customer_id: str,
-        workflow: str,
+        workflow: str | None,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
@@ -130,7 +130,7 @@ class ConversationService:
         self,
         customer_id: str,
         conversation_id: UUID,
-        workflow: str,
+        workflow: str | None,
         title: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> Conversation:
@@ -198,8 +198,7 @@ class ConversationService:
     async def add_interrupt_message(
         self,
         conversation: Conversation,
-        capability: str,
-        questions: list[str],
+        workflow_interrupt,
         trace_id: str | None = None,
     ) -> None:
         """
@@ -211,15 +210,9 @@ class ConversationService:
             conversation=conversation,
             role=MessageRole.SYSTEM,
             message_type=MessageType.INTERRUPT,
-            content = (
-                "Additional information required:\n"
-                + "\n".join(f"- {question}" for question in questions)
-            ),
+            content = workflow_interrupt.to_message(),
             trace_id=trace_id,
-            metadata={
-                "capability": capability,
-                "questions": questions,
-            },
+            metadata=workflow_interrupt.to_dict(),
         )
 
 
@@ -359,3 +352,15 @@ class ConversationService:
             await uow.conversations.complete(conversation_id)
             await self.cache.delete(conversation_id)
             logger.info(f"completed conversation: {conversation_id}")
+
+    async def update_workflow(
+        self,
+        conversation_id: UUID,
+        workflow: str
+    ):
+        """
+        Marks the conversation as completed and clears runtime cache.
+        """
+        async with self.uow() as uow:
+            await uow.conversations.update_workflow(conversation_id, workflow)
+            logger.info(f"update workflow in the conversation: {conversation_id}")

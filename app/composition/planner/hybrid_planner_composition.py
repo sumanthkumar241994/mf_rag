@@ -32,6 +32,7 @@ class HybridPlannerComposition:
             llm_gateway=llm_gateway,
             parser=self.parser,
             validator=self.validator,
+            tool_mapper=self.deterministic.tool_mapper
         )
 
         # Result Mapper

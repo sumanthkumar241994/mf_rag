@@ -21,7 +21,7 @@ class Conversation(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     customer_id: Mapped[str] = mapped_column(String(length=12), nullable=False, index=True)
-    workflow: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    workflow: Mapped[str] = mapped_column(String(255), nullable=True)
     title: Mapped[str] = mapped_column(String(255), nullable=True)
     status: Mapped[ConversationStatus] = mapped_column(Enum(ConversationStatus), default=ConversationStatus.ACTIVE.value, nullable=False, index=True)
     current_agent: Mapped[str | None] = mapped_column(String(100), nullable=True)

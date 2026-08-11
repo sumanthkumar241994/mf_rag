@@ -39,20 +39,13 @@ class HybridPlanner(Planner):
         self,
         state: AdvisorState,
     ) -> PlannerResult:
-
-        validation = await self._planner_service.plan(state)
-
-        if not validation.valid:
-            logger.warning(
-                "LLM planner validation failed. Falling back to deterministic planner.",
-                extra={"errors": validation.errors},
-            )
+        try:
+            result = await self._planner_service.plan(state)
+            return result
             
+        except Exception as exc:
+            logger.exception(f"LLM planner failed. Falling back to deterministic planner. {str(exc)}")
             return await self._fallback_plan(state)
-
-        return self._planner_result_mapper.map(
-            validation.response
-        )
 
     async def _fallback_plan(
         self,

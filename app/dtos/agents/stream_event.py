@@ -15,7 +15,7 @@ class AgentStreamEvent:
     success: bool | None = None
     message: str | None = None
     response: LLMStreamResponse | None = None
-    workflow_interrupt: WorkflowInterrupt | None = None
+    workflow_interrupt: Any | None = None
     metadata: dict[str, Any] | None = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,10 +44,7 @@ class AgentStreamEvent:
             payload["metadata"] = self.metadata
 
         if self.workflow_interrupt is not None:
-            payload["workflow_interrupt"] = {
-                "capability": self.workflow_interrupt.capability.value,
-                "questions": self.workflow_interrupt.questions
-            }
+            payload["workflow_interrupt"] = self.workflow_interrupt.to_dict()
     
 
         return payload

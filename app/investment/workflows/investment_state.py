@@ -5,8 +5,12 @@ from app.investment.business.customer.models.customer import Customer
 from pydantic import BaseModel, ConfigDict, Field
 from app.dtos.request_context import RequestContext
 
-from app.workflows.workflow.models.workflow_execution import WorkflowExecution
-from app.workflows.workflow.models.workflow_interrupt import WorkflowInterrupt
+from app.investment.business.execution.goal.execution_goal import ExecutionGoal
+from app.investment.common.enums.customer_state import CustomerState
+from app.investment.models.action_type import NextAction
+from app.investment.models.eligibility import Eligibility
+from app.investment.workflows.models.workflow_execution import WorkflowExecution
+from app.investment.workflows.models.workflow_interrupt import WorkflowInterrupt
 
 
 class InvestmentState(InvestmentBaseModel):
@@ -23,18 +27,22 @@ class InvestmentState(InvestmentBaseModel):
     trace_id: str
     correlation_id: str | None = None
 
+    execution_goal: ExecutionGoal | None = None
+    eligibility: Eligibility | None = None
+    next_action: NextAction | None = None
     # ------------------------------------------------------------------
     # Workflow
     # ------------------------------------------------------------------
 
     workflow_execution: WorkflowExecution | None = None
-    workflow_interrupt: WorkflowInterrupt | None = None
+    workflow_interrupt: WorkflowInterrupt| None = None
 
     # ------------------------------------------------------------------
     # Customer
     # ------------------------------------------------------------------
 
     customer: Customer | None = None
+    customer_state: CustomerState = CustomerState.NOT_LOADED
 
     # ------------------------------------------------------------------
     # Execution Context
@@ -47,8 +55,10 @@ class InvestmentState(InvestmentBaseModel):
     # ------------------------------------------------------------------
 
     errors: list[WorkflowError] = Field(default_factory=list)
+    last_error: WorkflowError | None = None
 
     def add_error(self, error: WorkflowError) -> None:
+        self.last_error = error
         self.errors.append(error)
     
     def get_latest_error(self, source: str) -> WorkflowError | None:

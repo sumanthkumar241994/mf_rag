@@ -52,25 +52,44 @@ class MCPClient:
         self._connected = False
 
     async def call(
-        self,
-        *,
-        tool_name: str,
-        request: BaseModel,
-        response_model: type[T],
-    ) -> Any:
+    self,
+    *,
+    tool_name: str,
+    response_model: type[T],
+    request: BaseModel | None = None,
+    **kwargs: Any,
+    ) -> T:
         """
         Invoke an MCP tool and deserialize the response.
+
+        Supports:
+        1. request=<BaseModel>
+        2. keyword arguments matching the MCP tool signature
         """
+
         if not self._connected:
             raise RuntimeError(
-                "MCP client has not been started. Call startup() during application startup."
+                "MCP client has not been started. "
+                "Call startup() during application startup."
             )
 
-        request = request.model_dump(mode="json")
+        arguments = {}
+        if request is not None:
+            arguments.update({"request": request.model_dump(mode="json")})
+        
+        if kwargs:
+            arguments.update({
+                key: (
+                    value.model_dump(mode="json")
+                    if isinstance(value, BaseModel)
+                    else value
+                )
+                for key, value in kwargs.items()
+            })
 
         result = await self._client.call_tool(
             tool_name,
-            request,
+            arguments,
         )
 
         return response_model.model_validate(

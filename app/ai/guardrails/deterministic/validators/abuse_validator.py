@@ -1,5 +1,6 @@
 from app.ai.guardrails.deterministic.models.guardrail_result import GuardRailResult
 from app.ai.guardrails.deterministic.validators.base import GuardRailValidator
+from app.ai.guardrails.enums import GuardRailCategory
 from app.dtos.request_context import RequestContext
 
 
@@ -42,20 +43,26 @@ class AbuseValidator(GuardRailValidator):
         request_context: RequestContext,
     ) -> GuardRailResult:
 
-        query = request_context.query.lower()
+        for text in self.extract_text(
+            request_context,
+        ):
 
-        for pattern in self.BLOCKED_PATTERNS:
+            query = text.lower()
 
-            if pattern in query:
+            for pattern in self.BLOCKED_PATTERNS:
 
-                return GuardRailResult(
-                    allowed=False,
-                    reason="ABUSIVE_REQUEST",
-                    response=(
-                        "I'm unable to assist with requests involving illegal, "
-                        "malicious, or abusive activities."
-                    ),
-                )
+                if pattern in query:
+
+                    return GuardRailResult(
+                        allowed=False,
+                        category=GuardRailCategory.ABUSE.value,
+                        validator="Abuse Validator",
+                        reason="ABUSIVE_REQUEST",
+                        response=(
+                            "I'm unable to assist with requests involving illegal, "
+                            "malicious, or abusive activities."
+                        ),
+                    )
 
         return GuardRailResult(
             allowed=True,

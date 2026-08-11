@@ -24,13 +24,11 @@ class NewCustomerComposition:
             customer_cache=CustomerCache(redis)
             )
         
-        self._workflow_service = WorkflowService()
         self._customer_mapper = CustomerMapper()
 
         self.customer_service = CustomerService(
             customer_gateway=self._gateway,
             customer_mapper=self._customer_mapper,
-            workflow_service=self._workflow_service
         )
 
     def register_mcp(self, mcp: FastMCP) -> None:
