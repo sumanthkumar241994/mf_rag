@@ -1,5 +1,6 @@
 from app.investment.business.customer.models.nominee import Nominee
 from app.investment.business.execution.data_collection_builder import DataCollectionBuilder
+from app.investment.common.enums.action_type import ActionType
 from app.investment.models.data_collection import DataCollection
 from app.investment.workflows.investment_state import InvestmentState
 
@@ -15,6 +16,7 @@ class FatcaCollectionBuilder(DataCollectionBuilder):
 
         return DataCollection(
             entity="FATCA",
+            action=ActionType.UPDATE_FATCA,
             title="FATCA Details",
             message="Please complete the missing FATCA details.",
             existing_data={

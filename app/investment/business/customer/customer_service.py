@@ -78,11 +78,12 @@ class CustomerService:
         result = await self._customer_gateway.update_nominee(
             context=gateway_context,
             nominee=request.goal.nominee,
+            verification_id=request.verification_id
         )
 
         if not result.success:
             return GatewayResult.failure(
-                code=result.error.code.value,
+                code=result.error.code,
                 message=result.error.message,
             )
 
@@ -110,12 +111,12 @@ class CustomerService:
 
         result = await self._customer_gateway.update_fatca(
             context=gateway_context,
-            nominee=request.goal.fatca,
+            fatca=request.goal.fatca,
         )
 
         if not result.success:
             return GatewayResult.failure(
-                code=result.error.code.value,
+                code=result.error.code,
                 message=result.error.message,
             )
 

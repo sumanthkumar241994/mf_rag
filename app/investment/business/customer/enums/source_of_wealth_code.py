@@ -2,8 +2,8 @@ from enum import StrEnum
 
 
 class SourceOfWealthCode(StrEnum):
-    SALARY = "1"
-    BUSINESS_INCOME = "2"
+    SALARY = "01"
+    BUSINESS_INCOME = "02"
     GIFT = "03"
     ANCESTRAL_PROPERTY = "04"
     RENTAL_INCOME = "05"

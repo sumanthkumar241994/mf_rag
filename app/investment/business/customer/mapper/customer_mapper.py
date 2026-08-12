@@ -48,6 +48,16 @@ class CustomerMapper:
         )
 
     @staticmethod
+    def _map_source_of_wealth_code(value: str):
+        if value == '1':
+            return SourceOfWealthCode('01')
+        if value == '2':
+            return SourceOfWealthCode('02')
+        
+        return SourceOfWealthCode(value=value)
+
+
+    @staticmethod
     def _map_fatca(
     data: dict,
     ) -> Fatca:
@@ -67,7 +77,7 @@ class CustomerMapper:
                 else None
             ),
             source_of_wealth_code=(
-                SourceOfWealthCode(data["source_of_wealth_code"])
+                CustomerMapper._map_source_of_wealth_code(data.get("source_of_wealth_code"))
                 if data.get("source_of_wealth_code")
                 else None
             ),

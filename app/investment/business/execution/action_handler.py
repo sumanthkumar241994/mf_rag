@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from app.investment.models.action_type import NextAction
+from app.investment.models.execution_result import ExecutionResult
 from app.investment.workflows.investment_state import InvestmentState
 
 
@@ -11,5 +12,5 @@ class ActionHandler(Protocol):
         self,
         state: InvestmentState,
         action: NextAction,
-    ) -> None:
+    ) -> ExecutionResult:
         pass

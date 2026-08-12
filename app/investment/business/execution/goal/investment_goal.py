@@ -15,3 +15,7 @@ class InvestmentExecutionGoal(ExecutionGoal):
     sip: SipDetails | None = None
     source: str = "search"
     target_completion_on: date | None = None
+
+    @property
+    def requires_verification(self) -> bool:
+        return True

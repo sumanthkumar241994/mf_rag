@@ -7,10 +7,11 @@ from app.investment.common.enums.action_type import ActionType
 
 
 class VerificationRequest(BaseModel):
+    trace_id: str
     customer_id: str
+    conversation_id: str
     action: ActionType
     purpose: VerificationPurpose
-
     payload: dict[str, Any] = Field(
         default_factory=dict,
     )

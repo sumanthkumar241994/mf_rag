@@ -6,11 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.dtos.request_context import RequestContext
 
 from app.investment.business.execution.goal.execution_goal import ExecutionGoal
+from app.investment.business.otp.models.verification_state import VerificationState
 from app.investment.common.enums.customer_state import CustomerState
 from app.investment.models.action_type import NextAction
 from app.investment.models.eligibility import Eligibility
 from app.investment.workflows.models.workflow_execution import WorkflowExecution
 from app.investment.workflows.models.workflow_interrupt import WorkflowInterrupt
+from app.investment.workflows.models.workflow_resume import WorkflowResume
 
 
 class InvestmentState(InvestmentBaseModel):
@@ -29,13 +31,20 @@ class InvestmentState(InvestmentBaseModel):
 
     execution_goal: ExecutionGoal | None = None
     eligibility: Eligibility | None = None
+
     next_action: NextAction | None = None
+
+    pending_actions: list[NextAction] = Field(default_factory=list)
+    pending_action: NextAction | None = None
+
+    verification: VerificationState | None = None
     # ------------------------------------------------------------------
     # Workflow
     # ------------------------------------------------------------------
 
     workflow_execution: WorkflowExecution | None = None
     workflow_interrupt: WorkflowInterrupt| None = None
+    workflow_resume: WorkflowResume | None = None
 
     # ------------------------------------------------------------------
     # Customer

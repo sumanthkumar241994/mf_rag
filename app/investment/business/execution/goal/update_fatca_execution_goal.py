@@ -7,3 +7,7 @@ class UpdateFatcaExecutionGoal(ExecutionGoal):
     operation: OperationType = OperationType.UPDATE_FATCA
     customer_id: str
     fatca: Fatca | None = None
+
+    @property
+    def requires_verification(self) -> bool:
+        return False

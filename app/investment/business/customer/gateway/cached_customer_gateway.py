@@ -4,6 +4,8 @@ from app.cache.customer_cache import CustomerCache
 from app.infrastructure.api_client.models import GateWayRequestContext
 from app.investment.base.models import GatewayResult
 from app.investment.business.customer.gateway.customer_gateway import CustomerGateway
+from app.investment.business.customer.models import fatca
+from app.investment.business.customer.models.nominee import Nominee
 
 
 class CachedCustomerGateway(CustomerGateway):
@@ -53,6 +55,34 @@ class CachedCustomerGateway(CustomerGateway):
         # ---------------------------------------------------------
         await self._customer_cache.set(
             customer_id=customer_id,
+            customer=result.data,
+        )
+
+        return result
+
+    async def update_nominee(self, nominee: Nominee, verification_id: str, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
+        result = await self._gateway.update_nominee(nominee=nominee, verification_id=verification_id, context=context)
+
+        if not result.success:
+            return result
+
+        # Cache Falcon Response
+        await self._customer_cache.set(
+            customer_id=context.customer_id,
+            customer=result.data,
+        )
+
+        return result
+
+    async def update_fatca(self, fatca: fatca.Fatca, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
+        result = await self._gateway.update_fatca(fatca=fatca, context=context)
+
+        if not result.success:
+            return result
+
+        # Cache Falcon Response
+        await self._customer_cache.set(
+            customer_id=context.customer_id,
             customer=result.data,
         )
 

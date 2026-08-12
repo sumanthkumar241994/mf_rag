@@ -29,7 +29,7 @@ class FatcaUpdateActionHandler(CustomerUpdateActionHandler):
 
         goal = cast(
             UpdateFatcaExecutionGoal,
-            state.goal,
+            state.execution_goal,
         )
 
         return await self._customer_client.update_fatca(

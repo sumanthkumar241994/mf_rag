@@ -1,5 +1,6 @@
 from app.investment.business.execution.action_registry import ActionHandlerRegistry
 from app.investment.business.execution.planner.execution_planner import ExecutionPlanner
+from app.investment.models.execution_result import ExecutionResult, ExecutionStatus
 from app.investment.workflows.investment_state import (
     InvestmentState,
 )
@@ -40,7 +41,7 @@ class ExecutionEngine:
 
             error_count = len(state.errors)
 
-            await handler.execute(
+            result: ExecutionResult = await handler.execute(
                 state=state,
                 action=next_action,
             )
@@ -48,6 +49,6 @@ class ExecutionEngine:
             if len(state.errors) > error_count:
                 return None
 
-            # Any interrupt immediately pauses execution.
-            if state.workflow_execution and state.workflow_execution.interrupted:
+            if result.status == ExecutionStatus.COMPLETED:
                 return state.workflow_execution
+        

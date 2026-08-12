@@ -6,7 +6,6 @@ from fastapi import FastAPI, Request
 from pydantic_settings.main import re
 from app.api.dependencies.mcp import initialize_mcp
 from app.api.dependencies.rest_api_client import get_rest_api_client
-from app.composition.business.new_customer_composition import NewCustomerComposition
 from app.composition.mcp_clients.mcp_composition import MCPComposition
 from app.core.config import settings
 from app.core.config.redis import get_redis

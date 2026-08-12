@@ -10,67 +10,21 @@ from app.infrastructure.api_client.exceptions import (
     ValidationError,
 )
 from app.investment.base.models import GatewayResult
-from app.investment.business.customer.gateway.customer_gateway import CustomerGateway
-from app.investment.business.customer.models.fatca import Fatca
-from app.investment.business.customer.models.nominee import Nominee
+from app.investment.business.otp.gateway.otp_gateway import VerificationGateway
 from app.investment.common.enums.gateway_error import GatewayErrorCode
 
 
-class FalconCustomerGateway(CustomerGateway):
-    CUSTOMER_ENDPOINT = "/v2/customer/me"
+class FalconOTPVerificationGateway(VerificationGateway):
+    VERIFICATION_ENDPOINT = "/v4/otp_verification"
     def __init__(self, api_client: BaseApiClient):
         self._api_client = api_client
 
     
-    async def get_customer(self, context: GateWayRequestContext | None = None ) -> GatewayResult[dict[str, Any]]:
-        try:
-            response = await self._api_client.get(
-                url=self.CUSTOMER_ENDPOINT,
-                options=RequestOptions(
-                    context=context,
-                ),
-            )
-
-            return GatewayResult.ok(response)
-
-        except Exception as ex:
-            return self._handle_exception(ex, operation='retrieve customer')
-
-    async def update_nominee(self, nominee: Nominee, verification_id: str, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
-        try:
-            body = {
-                    "nominee_name": nominee.name,
-                    "nominee_date_of_birth": nominee.date_of_birth.strftime("%Y-%m-%d"),
-                    "nominee_relationship": nominee.relationship,
-                    "customer_action_uid": verification_id,
-                    "nominee_id_type": nominee.identity_type,
-                    "nominee_id_no": nominee.identity_number,
-                    "nominee_email_id": nominee.email,
-                    "nominee_mobile_no": nominee.mobile,
-                    "nominee_city": "Hyderabad",
-                    "nominee_pincode":"500038",
-                    "nominee_state":"telangana",
-                    "nominee_address":"Hyderabad"
-                }
-
-            response = await self._api_client.post(
-                url=self.CUSTOMER_ENDPOINT,
-                body=body,
-                options=RequestOptions(
-                    context=context,
-                ),
-            )
-
-            return GatewayResult.ok(response)
-
-        except Exception as ex:
-            return self._handle_exception(ex, operation='update nominee')
-
-    async def update_fatca(self, fatca: Fatca, context: GateWayRequestContext | None = None) -> GatewayResult[dict[str, Any]]:
+    async def send_otp(self, context: GateWayRequestContext, payload: dict[str, Any]) -> GatewayResult[dict[str, Any]]:
         try:
             response = await self._api_client.post(
-                url=self.CUSTOMER_ENDPOINT,
-                body=fatca.model_dump(mode='json'),
+                url=self.VERIFICATION_ENDPOINT,
+                body=payload,
                 options=RequestOptions(
                     context=context,
                 ),
@@ -79,7 +33,22 @@ class FalconCustomerGateway(CustomerGateway):
             return GatewayResult.ok(response)
 
         except Exception as ex:
-            return self._handle_exception(ex, operation='update fatca')
+            return self._handle_exception(ex, operation='send otp')
+
+    async def verify_otp(self, context: GateWayRequestContext, payload: dict[str, Any]) -> GatewayResult[dict[str, Any]]:
+        try:
+            response = await self._api_client.post(
+                url=self.VERIFICATION_ENDPOINT,
+                body=payload,
+                options=RequestOptions(
+                    context=context,
+                ),
+            )
+
+            return GatewayResult.ok(response)
+
+        except Exception as ex:
+            return self._handle_exception(ex, operation='Verify otp')
 
     
     def _handle_exception(
@@ -103,26 +72,26 @@ class FalconCustomerGateway(CustomerGateway):
         if isinstance(ex, AuthenticationError):
             return GatewayResult.failure(
                 code=GatewayErrorCode.AUTHENTICATION_FAILED,
-                message="Authentication with customer service failed.",
+                message="Authentication with otp service failed.",
             )
 
         if isinstance(ex, AuthorizationError):
             return GatewayResult.failure(
                 code=GatewayErrorCode.AUTHORIZATION_FAILED,
-                message="Authorization with customer service failed.",
+                message="Authorization with otp service failed.",
             )
 
         if isinstance(ex, RequestTimeoutError):
             return GatewayResult.failure(
                 code=GatewayErrorCode.REQUEST_TIMEOUT,
-                message="customer service did not respond in time.",
+                message="otp service did not respond in time.",
                 retryable=True,
             )
 
         if isinstance(ex, ServiceUnavailableError):
             return GatewayResult.failure(
                 code=GatewayErrorCode.SERVICE_UNAVAILABLE,
-                message="Customer service is temporarily unavailable.",
+                message="otp service is temporarily unavailable.",
                 retryable=True,
             )
 

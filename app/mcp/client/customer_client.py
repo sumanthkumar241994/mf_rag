@@ -1,7 +1,6 @@
 from fastmcp import Client
-from mcp.shared.context import RequestContext
 
-from app.investment.base.models import GatewayResult
+from app.investment.base.models import GatewayResult, RequestContext
 from app.investment.business.customer.models.customer import Customer
 from app.investment.business.customer.models.retrieval_customer_request import (
     RetrieveCustomerRequest,
@@ -41,6 +40,7 @@ class CustomerClient:
         self,
         trace_id: str,
         request: RequestContext,
+        verification_id: str,
         goal: UpdateNomineeExecutionGoal
     ) -> GatewayResult[WorkflowExecution[Customer]]:
 
@@ -49,6 +49,7 @@ class CustomerClient:
             response_model=GatewayResult[WorkflowExecution[Customer]],
             request=request,
             trace_id=trace_id,
+            verification_id=verification_id,
             goal=goal,
         )
 

@@ -12,6 +12,9 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.investment.workflows.nodes.data_collection_node import DataCollectionNode
 from app.investment.workflows.nodes.eligbility_node import EligibilityNode
+from app.investment.workflows.nodes.verification_node import VerificationNode
+from app.investment.workflows.nodes.verification_prepare_node import VerificationPrepareNode
+from app.investment.workflows.nodes.verification_wait_node import VerificationWaitNode
 from app.observability.tracing import trace_step
 from app.workflows.workflow_config import WorkflowConfig
 
@@ -23,11 +26,15 @@ class InvestmentWorkflow:
         customer_node: CustomerNode,
         eligibility_node: EligibilityNode,
         data_collection_node: DataCollectionNode,
+        verification_prepare_node: VerificationPrepareNode,
+        verification_wait_node: VerificationWaitNode,
         checkpointer: AsyncPostgresSaver,
     ):
         self._customer_node = customer_node
         self._eligibility_node = eligibility_node
         self._data_collection_node = data_collection_node
+        self._verification_prepare_node = verification_prepare_node
+        self._verification_wait_node = verification_wait_node
         self._checkpointer = checkpointer
         self._graph = self._build_graph()
 
@@ -37,6 +44,8 @@ class InvestmentWorkflow:
         workflow.add_node("customer", self._customer_node)
         workflow.add_node("eligibility", self._eligibility_node)
         workflow.add_node("data_collection", self._data_collection_node)
+        workflow.add_node("verification_prepare", self._verification_prepare_node)
+        workflow.add_node("verification_wait", self._verification_wait_node)
 
         workflow.add_edge(START, "customer")
         workflow.add_conditional_edges(
@@ -45,6 +54,8 @@ class InvestmentWorkflow:
             {
                 END: END,
                 "eligibility": "eligibility",
+                "verification": "verification_prepare",
+                "data_collection": "data_collection",
             },
         )
         workflow.add_conditional_edges(
@@ -53,17 +64,21 @@ class InvestmentWorkflow:
             {
                 END: END,
                 "data_collection": "data_collection",
+                "verification": "verification_prepare",
             },
         )
         workflow.add_conditional_edges(
             "data_collection",
             self._route_after_data_collection,
             {
+                "verification": "verification_prepare",
                 "customer": "customer",
                 END: END,
             },
         )
-        workflow.add_edge("data_collection", END)
+        workflow.add_edge( "verification_prepare", "verification_wait")
+        workflow.add_edge("verification_wait", "customer" )
+
         # workflow.add_conditional_edges(
         #     "eligibility",
         #     self._route_after_eligibility,
@@ -156,8 +171,23 @@ class InvestmentWorkflow:
         #
         # Workflow already completed.
         #
-        if snapshot.next == ():
+        # if snapshot.next == ():
+        #     return
+
+        has_interrupt = bool(snapshot.interrupts)
+
+        if not has_interrupt:
+            has_interrupt = any(task.interrupts for task in snapshot.tasks)
+
+        if not has_interrupt:
             return
+
+        workflow_resume = state.request.workflow_resume
+
+        if workflow_resume is None:
+            raise ValueError(
+                "Workflow resume data is required."
+            )
 
         async for _, chunk in self._graph.astream(
             Command(
@@ -231,14 +261,14 @@ class InvestmentWorkflow:
             return
 
         # Workflow interrupted.
-        if execution.interrupted:
+        # if execution.interrupted:
 
-            yield AgentStreamEvent(
-                type=StreamEventType.WORKFLOW_INTERRUPT.value,
-                workflow_interrupt=execution.interrupt,
-            )
+        #     yield AgentStreamEvent(
+        #         type=StreamEventType.WORKFLOW_INTERRUPT.value,
+        #         workflow_interrupt=execution.interrupt,
+        #     )
 
-            return
+        #     return
 
         # Workflow completed successfully.
         # yield AgentStreamEvent(
@@ -255,12 +285,30 @@ class InvestmentWorkflow:
         if state.last_error is not None:
             return END
 
-        execution = state.workflow_execution
-
-        if execution and execution.interrupted:
+        if state.workflow_execution and state.workflow_execution.interrupted:
             return END
 
-        return "eligibility"
+        # No active execution goal means we need to determine
+        # what customer requirement comes next.
+        if state.execution_goal is None:
+
+            if state.pending_actions:
+                return "data_collection"
+
+            return "eligibility"
+
+        # Active execution requires verification.
+        if (
+            state.execution_goal.requires_verification
+            and (
+                state.verification is None
+                or not state.verification.verified
+            )
+        ):
+            return "verification"
+
+        return "customer"
+
 
     def _route_after_eligibility(
     self,
@@ -274,29 +322,26 @@ class InvestmentWorkflow:
 
         return "investment"
 
-    
-    def _route_after_eligibility(
-    self,
-    state: InvestmentState,
-    ) -> str:
-
-        if (
-            state.eligibility
-            and state.eligibility.required
-        ):
+    def _route_after_eligibility(self, state: InvestmentState) -> str:
+        if state.eligibility and state.eligibility.required:
             return "data_collection"
 
-        return "continue"
+        return "customer"
+    
+
 
     def _route_after_data_collection(
-    self,
-    state: InvestmentState,
+        self,
+        state: InvestmentState,
     ) -> str:
 
-        if (
-            state.eligibility
-            and state.eligibility.required
-        ):
-            return "customer"
+        # Data collection has created an execution goal.
+        if state.execution_goal is None:
+            return END
 
-        return "continue"
+        # The selected action requires OTP verification.
+        if state.execution_goal.requires_verification:
+            return "verification"
+
+        # No verification required.
+        return "customer"

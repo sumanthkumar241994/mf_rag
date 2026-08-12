@@ -27,15 +27,16 @@ def register_customer_tools(mcp: FastMCP, customer_service: CustomerService) -> 
         return await customer_service.retrieve(request)
     
     @mcp.tool(name="update_nominee", description="update nominee details.")
-    async def update_nominee(trace_id: str, request: RequestContext, goal: UpdateNomineeExecutionGoal) -> GatewayResult[WorkflowExecution[Customer]]:
+    async def update_nominee(trace_id: str, request: RequestContext, verification_id: str, goal: UpdateNomineeExecutionGoal) -> GatewayResult[WorkflowExecution[Customer]]:
         request = UpdateNomineeRequest(
             trace_id=trace_id,
             request=request,
-            goal=goal
+            goal=goal,
+            verification_id=verification_id
         )
         return await customer_service.update_nominee(request)
 
-    @mcp.tool(name="update_nominee", description="update nominee details.")
+    @mcp.tool(name="update_fatca", description="update nominee details.")
     async def update_fatca(trace_id: str, request: RequestContext, goal: UpdateFatcaExecutionGoal) -> GatewayResult[WorkflowExecution[Customer]]:
         request = UpdateFatcaRequest(
             trace_id=trace_id,

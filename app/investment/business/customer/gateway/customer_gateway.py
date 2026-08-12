@@ -23,6 +23,7 @@ class CustomerGateway(ABC):
     async def update_nominee(
         self,
         nominee: Nominee,
+        verification_id: str,
         context: GateWayRequestContext | None = None
     ) -> GatewayResult[dict[str, Any]]:
         """

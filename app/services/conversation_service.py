@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import json
 import logging
 from datetime import datetime, timezone
 import trace
@@ -178,13 +179,14 @@ class ConversationService:
     async def add_resume_message(
         self,
         conversation: Conversation,
-        content: str,
+        content: dict,
         trace_id: str | None = None,
     ) -> None:
         """
         Persists the user's response that resumes
         a previously interrupted workflow.
         """
+        content = json.dumps(content, separators=(",", ":"))
 
         await self._save_message(
             conversation=conversation,

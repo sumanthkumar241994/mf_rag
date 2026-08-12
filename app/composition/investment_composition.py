@@ -3,6 +3,7 @@
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from app.agents.investment_agent import InvestmentAgent
 from app.composition.mcp_clients.customer_client_composition import CustomerClientComposition
+from app.composition.mcp_clients.otp_client_composition import OTPClientComposition
 from app.investment.business.execution.complete_action_handler import CompletionActionHandler
 from app.investment.business.execution.completion_stage import CompletionStage
 from app.investment.business.execution.customer.builder.fatca_data_collection_builder import FatcaCollectionBuilder
@@ -19,13 +20,18 @@ from app.investment.business.execution.eligibility.eligibility_action_handler_re
 from app.investment.business.execution.eligibility.handlers.data_collection_interrupt_handler import DataCollectionInterruptHandler
 from app.investment.business.execution.eligibility.handlers.eligibility_action_handler import EligibilityActionHandler
 from app.investment.business.execution.eligibility.planners.eligibility_stage import EligibilityStage
+from app.investment.business.execution.eligibility_action_mapper import EligibilityActionMapper
 from app.investment.business.execution.execution_engine import ExecutionEngine
 from app.investment.business.execution.planner.rule_based_execution_planner import RuleBasedExecutionPlanner
 from app.investment.services.eligibility_service import EligibilityService
 from app.investment.workflows.investment_workflow import InvestmentWorkflow
+from app.investment.workflows.nodes import verification_node
 from app.investment.workflows.nodes.customer_node import CustomerNode
 from app.investment.workflows.nodes.data_collection_node import DataCollectionNode
 from app.investment.workflows.nodes.eligbility_node import EligibilityNode
+from app.investment.workflows.nodes.verification_node import VerificationNode
+from app.investment.workflows.nodes.verification_prepare_node import VerificationPrepareNode
+from app.investment.workflows.nodes.verification_wait_node import VerificationWaitNode
 from app.mcp.client.mcp_client import MCPClient
 
 
@@ -43,6 +49,8 @@ class InvestmentComposition:
     ):
         
         self.customer_client = CustomerClientComposition(mcp)
+
+        self.otp_client = OTPClientComposition(mcp)
 
 
         # Customer
@@ -80,7 +88,7 @@ class InvestmentComposition:
         # Eligibility
         eligibility_registry = EligibilityActionHandlerRegistry(
             eligibility_action_handler=EligibilityActionHandler(),
-            data_collection_interrupt_handler=DataCollectionInterruptHandler(),
+            data_collection_interrupt_handler=DataCollectionInterruptHandler(EligibilityActionMapper()),
         )
         
         eligibility_service = EligibilityService()
@@ -98,11 +106,20 @@ class InvestmentComposition:
         self.eligibility_node = EligibilityNode(
             engine=eligibility_engine,
         )
+
+        self.verification_prepare_node = VerificationPrepareNode(
+            otp_client=self.otp_client.client
+        )
+
+        self.verification_wait_node = VerificationWaitNode(otp_client=self.otp_client.client)
+
         self.data_collection_node = DataCollectionNode(customer_builder_registry)
         self.workflow = InvestmentWorkflow(
             customer_node=self.customer_node,
             eligibility_node=self.eligibility_node,
             data_collection_node=self.data_collection_node,
+            verification_prepare_node=self.verification_prepare_node,
+            verification_wait_node=self.verification_wait_node,
             checkpointer=checkpointer,
         )
 

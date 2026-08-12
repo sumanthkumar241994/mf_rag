@@ -26,11 +26,12 @@ class NomineeUpdateActionHandler(CustomerUpdateActionHandler):
 
         goal = cast(
             UpdateNomineeExecutionGoal,
-            state.goal,
+            state.execution_goal,
         )
 
         return await self._customer_client.update_nominee(
             trace_id=state.trace_id,
             request=RequestContext(**asdict(state.request)),
+            verification_id=state.verification.verification_id,
             goal=goal
         )

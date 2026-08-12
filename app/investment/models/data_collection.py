@@ -4,7 +4,7 @@ from app.investment.base.models import InvestmentBaseModel
 
 class DataCollection(InvestmentBaseModel):
     entity: str
-
+    action: str
     title: str
 
     message: str
