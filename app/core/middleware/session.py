@@ -1,4 +1,3 @@
-from tkinter import EW
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import FastAPI, Request, Response
 from typing import Callable
