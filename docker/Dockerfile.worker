@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-CMD ["python", "-m", "app.workers.main"]
+CMD ["python", "-m", "app.workers.mainfind app -maxdepth 3 -type f | sort"]
