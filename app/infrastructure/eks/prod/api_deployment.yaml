@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mf-api
+  namespace: mutual-fund
+  labels:
+    app: mf-api
+    app.kubernetes.io/name: mf-api
+    app.kubernetes.io/part-of: mutual-fund-platform
+spec:
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: mf-api
+
+  template:
+    metadata:
+      labels:
+        app: mf-api
+        app.kubernetes.io/name: mf-api
+        app.kubernetes.io/part-of: mutual-fund-platform
+
+    spec:
+
+      nodeSelector:
+        workload: main
+
+      containers:
+        - name: api
+
+          image: 526484109177.dkr.ecr.ap-south-1.amazonaws.com/mf-api:1.0.0
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+
+            - name: AWS_REGION
+              value: "ap-south-1"
+
+            - name: REDIS_HOST
+              value: "master.mfcache.hbxp3k.aps1.cache.amazonaws.com"
+
+            - name: REDIS_PORT
+              value: "6379"
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /api/v1//health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mf-api
+  namespace: mutual-fund
+  labels:
+    app: mf-api
+spec:
+  type: ClusterIP
+
+  selector:
+    app: mf-api
+
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mf-mcp
+  namespace: mutual-fund
+  labels:
+    app: mf-mcp
+spec:
+  type: ClusterIP
+
+  selector:
+    app: mf-mcp
+
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+      protocol: TCP

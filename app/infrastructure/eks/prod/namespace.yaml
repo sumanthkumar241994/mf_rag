@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mutual-fund
+  labels:
+    app.kubernetes.io/part-of: mutual-fund-platform
+    environment: production

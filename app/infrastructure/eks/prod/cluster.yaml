@@ -1,0 +1,56 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: mf-prod
+  region: ap-south-1
+  version: "1.35"
+
+vpc:
+  id: vpc-03144f75f4d23aef6
+
+  subnets:
+    private:
+      ap-south-1a:
+        id: subnet-0c7397328069a1382
+      ap-south-1b:
+        id: subnet-072a1076fe2b248b4
+
+managedNodeGroups:
+  - name: main
+    instanceType: t3.medium
+    minSize: 2
+    desiredCapacity: 2
+    maxSize: 3
+    privateNetworking: true
+
+    labels:
+      workload: main
+
+    tags:
+      Environment: production
+      Project: mutual-fund
+      NodeGroup: main
+
+  - name: worker
+    instanceType: t3.medium
+    minSize: 1
+    desiredCapacity: 1
+    maxSize: 2
+    privateNetworking: true
+
+    labels:
+      workload: worker
+
+    taints:
+      - key: dedicated
+        value: worker
+        effect: NoSchedule
+
+    tags:
+      Environment: production
+      Project: mutual-fund
+      NodeGroup: worker
+
+iam:
+  withOIDC: true

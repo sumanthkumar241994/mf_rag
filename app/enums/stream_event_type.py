@@ -19,6 +19,7 @@ class StreamEventType(StrEnum):
     WORKFLOW_INTERRUPT = 'workflow_interrupt'
     WORKFLOW_COMPLETED = 'workflow_completed'
 
+    WORKFLOW_DELEGATION = 'workflow_delegation'
 
 
 

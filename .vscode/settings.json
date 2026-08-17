@@ -1,0 +1,5 @@
+{
+    "yaml.disableSchemaDetection": [
+        "file:///Users/sumanth/Desktop/mf_rag/app/infrastructure/eks/prod/cluster.yaml"
+    ]
+}

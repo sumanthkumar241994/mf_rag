@@ -1,3 +1,4 @@
+from app.investment.workflows.investment_state import InvestmentState
 from app.workflows.advisor.advisor_state import AdvisorState
 from langchain_core.runnables import RunnableConfig
 
@@ -5,7 +6,7 @@ class WorkflowConfig:
 
     @staticmethod
     def config(
-        state: AdvisorState,
+        state: InvestmentState,
     ) -> RunnableConfig:
         return {
             "configurable": {
@@ -15,6 +16,6 @@ class WorkflowConfig:
 
     @staticmethod
     def thread_id(
-        state: AdvisorState,
+        state: InvestmentState,
     ) -> str:
-        return f"advisor:{state.request.conversation_id}"
+        return f"investment_purchase:{state.request.conversation_id}"

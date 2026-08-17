@@ -11,12 +11,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.investment.workflows.nodes.data_collection_node import DataCollectionNode
+from app.investment.workflows.nodes.delegation_node import DelegationNode
 from app.investment.workflows.nodes.eligbility_node import EligibilityNode
-from app.investment.workflows.nodes.verification_node import VerificationNode
 from app.investment.workflows.nodes.verification_prepare_node import VerificationPrepareNode
 from app.investment.workflows.nodes.verification_wait_node import VerificationWaitNode
+from app.investment.workflows.workflow_config import WorkflowConfig
 from app.observability.tracing import trace_step
-from app.workflows.workflow_config import WorkflowConfig
 
 
 class InvestmentWorkflow:
@@ -28,6 +28,7 @@ class InvestmentWorkflow:
         data_collection_node: DataCollectionNode,
         verification_prepare_node: VerificationPrepareNode,
         verification_wait_node: VerificationWaitNode,
+        delegation_node: DelegationNode,
         checkpointer: AsyncPostgresSaver,
     ):
         self._customer_node = customer_node
@@ -35,6 +36,7 @@ class InvestmentWorkflow:
         self._data_collection_node = data_collection_node
         self._verification_prepare_node = verification_prepare_node
         self._verification_wait_node = verification_wait_node
+        self._delegation_node = delegation_node
         self._checkpointer = checkpointer
         self._graph = self._build_graph()
 
@@ -46,6 +48,7 @@ class InvestmentWorkflow:
         workflow.add_node("data_collection", self._data_collection_node)
         workflow.add_node("verification_prepare", self._verification_prepare_node)
         workflow.add_node("verification_wait", self._verification_wait_node)
+        workflow.add_node("delegation", self._delegation_node)
 
         workflow.add_edge(START, "customer")
         workflow.add_conditional_edges(
@@ -64,9 +67,10 @@ class InvestmentWorkflow:
             {
                 END: END,
                 "data_collection": "data_collection",
-                "verification": "verification_prepare",
+                "delegation": "delegation"
             },
         )
+        workflow.add_edge("delegation", END)
         workflow.add_conditional_edges(
             "data_collection",
             self._route_after_data_collection,
@@ -255,6 +259,20 @@ class InvestmentWorkflow:
 
             return
 
+        delegation = node_state.get("delegation", state.delegation)
+        
+        state.delegation = delegation
+
+        # Workflow delegated.
+        if delegation is not None:
+
+            yield AgentStreamEvent(
+                type=StreamEventType.WORKFLOW_DELEGATION.value,
+                workflow_delegation=delegation,
+            )
+
+            return
+
         execution = state.workflow_execution
 
         if execution is None:
@@ -310,24 +328,29 @@ class InvestmentWorkflow:
         return "customer"
 
 
-    def _route_after_eligibility(
-    self,
-    state: InvestmentState,
-    ) -> str:
+    def _route_after_eligibility(self, state: InvestmentState) -> str:
 
-        execution = state.workflow_execution
+        eligibility = state.eligibility
 
-        if execution and execution.interrupted:
+        if eligibility is None:
             return END
 
-        return "investment"
+        # Customer is not eligible and has pending requirements.
+        if not eligibility.eligible:
 
-    def _route_after_eligibility(self, state: InvestmentState) -> str:
-        if state.eligibility and state.eligibility.required:
-            return "data_collection"
+            if eligibility.required:
+                return "data_collection"
 
-        return "customer"
-    
+            return END
+
+        # ---------------------------------------------------------
+        # Customer is eligible.
+        #
+        # At this point the customer prerequisites are complete.
+        # Delegate to Advisor for scheme discovery/selection.
+        # ---------------------------------------------------------
+
+        return "delegation"
 
 
     def _route_after_data_collection(

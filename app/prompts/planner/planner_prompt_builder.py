@@ -26,7 +26,9 @@ class PlannerPromptBuilder:
         user_prompt = f"""
             <customer_query>
 
-            {state.request.query}
+            "Query": {state.request.query}
+
+            "Delegation Context": {state.request.delegation}
 
             </customer_query>
             """.strip()

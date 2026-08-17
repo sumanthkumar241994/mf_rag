@@ -10,6 +10,7 @@ from app.investment.business.otp.models.verification_state import VerificationSt
 from app.investment.common.enums.customer_state import CustomerState
 from app.investment.models.action_type import NextAction
 from app.investment.models.eligibility import Eligibility
+from app.investment.workflows.models.delegation import Delegation
 from app.investment.workflows.models.workflow_execution import WorkflowExecution
 from app.investment.workflows.models.workflow_interrupt import WorkflowInterrupt
 from app.investment.workflows.models.workflow_resume import WorkflowResume
@@ -28,6 +29,8 @@ class InvestmentState(InvestmentBaseModel):
 
     trace_id: str
     correlation_id: str | None = None
+
+    delegation: Delegation | None = None
 
     execution_goal: ExecutionGoal | None = None
     eligibility: Eligibility | None = None

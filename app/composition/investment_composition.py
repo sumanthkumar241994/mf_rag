@@ -23,11 +23,14 @@ from app.investment.business.execution.eligibility.planners.eligibility_stage im
 from app.investment.business.execution.eligibility_action_mapper import EligibilityActionMapper
 from app.investment.business.execution.execution_engine import ExecutionEngine
 from app.investment.business.execution.planner.rule_based_execution_planner import RuleBasedExecutionPlanner
+from app.investment.delegation.builders.scheme_selection_builder import SchemeSelectionDelegationBuilder
+from app.investment.delegation.delegation_builder_registry import DelegationBuilderRegistry
 from app.investment.services.eligibility_service import EligibilityService
 from app.investment.workflows.investment_workflow import InvestmentWorkflow
 from app.investment.workflows.nodes import verification_node
 from app.investment.workflows.nodes.customer_node import CustomerNode
 from app.investment.workflows.nodes.data_collection_node import DataCollectionNode
+from app.investment.workflows.nodes.delegation_node import DelegationNode
 from app.investment.workflows.nodes.eligbility_node import EligibilityNode
 from app.investment.workflows.nodes.verification_node import VerificationNode
 from app.investment.workflows.nodes.verification_prepare_node import VerificationPrepareNode
@@ -114,12 +117,26 @@ class InvestmentComposition:
         self.verification_wait_node = VerificationWaitNode(otp_client=self.otp_client.client)
 
         self.data_collection_node = DataCollectionNode(customer_builder_registry)
+
+        scheme_selection_builder = SchemeSelectionDelegationBuilder()
+
+        delegation_registry = DelegationBuilderRegistry(
+            builders=[
+                scheme_selection_builder,
+            ],
+        )
+
+        self.delegation_node = DelegationNode(
+            registry=delegation_registry,
+        )
+        
         self.workflow = InvestmentWorkflow(
             customer_node=self.customer_node,
             eligibility_node=self.eligibility_node,
             data_collection_node=self.data_collection_node,
             verification_prepare_node=self.verification_prepare_node,
             verification_wait_node=self.verification_wait_node,
+            delegation_node=self.delegation_node,
             checkpointer=checkpointer,
         )
 

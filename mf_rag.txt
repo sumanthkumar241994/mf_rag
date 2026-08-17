@@ -13627,7 +13627,36 @@ InvestmentHandler
 
 ---------------------------------
 
+1. Elastic IP       ← now
+2. NAT Gateway      ← now
+3. Private subnets
+4. Private route table
+5. NAT route
+6. EKS
+7. ECR
+8. Kubernetes
+9. AWS Load Balancer Controller
+10. ALB
 
 
+    8  aws elasticache describe-replication-groups   --region ap-south-1   --query 'ReplicationGroups[?ReplicationGroupId==`mfcache`].[ReplicationGroupId,Status,Engine,ClusterEnabled,ConfigurationEndpoint,PrimaryEndpoint,ReaderEndpoint]'
+    9  aws elasticache describe-replication-groups   --region ap-south-1   --replication-group-id mfcache   --query 'ReplicationGroups[0].NodeGroups[0].[PrimaryEndpoint,ReaderEndpoint,NodeGroupMembers[*].ReadEndpoint]'   --output json
+   10  aws elasticache describe-cache-subnet-groups   --region ap-south-1   --output json
+   11  aws ec2 describe-route-tables   --region ap-south-1   --filters "Name=vpc-id,Values=vpc-03144f75f4d23aef6"   --query 'RouteTables[*].[RouteTableId,Associations[*].SubnetId,Routes[*].[DestinationCidrBlock,GatewayId,NatGatewayId]]'   --output json
+   12  aws ec2 describe-route-tables   --region ap-south-1   --filters "Name=vpc-id,Values=vpc-03144f75f4d23aef6"   --query 'RouteTables[*].{RouteTableId:RouteTableId,Main:Associations[?Main==`true`].Main|[0],Subnets:Associations[?SubnetId!=null].SubnetId,Routes:Routes[*].[DestinationCidrBlock,GatewayId,NatGatewayId]}'   --output json
+   13  aws ec2 describe-subnets   --region ap-south-1   --subnet-ids     subnet-0135b6615bcfd6f33     subnet-0db4a49c4e68fc8ba     subnet-0c9bf74aa72c0c968   --query 'Subnets[*].{SubnetId:SubnetId,AZ:AvailabilityZone,CIDR:CidrBlock,PublicIP:MapPublicIpOnLaunch}'   --output table
+   14  aws ec2 describe-nat-gateways   --region ap-south-1   --filter Name=vpc-id,Values=vpc-03144f75f4d23aef6   --query 'NatGateways[*].[NatGatewayId,State,SubnetId,ConnectivityType]'   --output table
+   15  aws ec2 allocate-address   --region ap-south-1   --domain vpc
+   16  aws ec2 create-nat-gateway   --region ap-south-1   --subnet-id subnet-0db4a49c4e68fc8ba   --allocation-id eipalloc-0763e33eb59569478
+   17  aws ec2 describe-nat-gateways   --region ap-south-1   --filter Name=vpc-id,Values=vpc-03144f75f4d23aef6   --query 'NatGateways[*].[NatGatewayId,State,SubnetId,NatGatewayAddresses[0].PublicIp]'   --output table
+   18  aws ec2 create-subnet   --region ap-south-1   --vpc-id vpc-03144f75f4d23aef6   --cidr-block 172.31.48.0/20   --availability-zone ap-south-1a
+   19  aws ec2 create-subnet   --region ap-south-1   --vpc-id vpc-03144f75f4d23aef6   --cidr-block 172.31.64.0/20   --availability-zone ap-south-1b
+   20  aws ec2 create-route-table   --region ap-south-1   --vpc-id vpc-03144f75f4d23aef6
+   21  aws ec2 create-route   --region ap-south-1   --route-table-id rtb-0868afb0f5c0ff922   --destination-cidr-block 0.0.0.0/0   --nat-gateway-id nat-0d74661d75e2c25cd
+   22  aws ec2 associate-route-table   --region ap-south-1   --route-table-id rtb-0868afb0f5c0ff922   --subnet-id subnet-0c7397328069a1382
+   23  aws ec2 associate-route-table   --region ap-south-1   --route-table-id rtb-0868afb0f5c0ff922   --subnet-id subnet-072a1076fe2b248b4
+   24  aws ec2 describe-route-tables   --region ap-south-1   --route-table-ids rtb-0868afb0f5c0ff922   --query 'RouteTables[0].[RouteTableId,Associations[*].SubnetId,Routes[*].[DestinationCidrBlock,NatGatewayId,GatewayId]]'   --output json
+
+   
 
 

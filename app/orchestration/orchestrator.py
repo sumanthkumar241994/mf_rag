@@ -1,6 +1,7 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import time
 from typing import AsyncIterator
+from uuid import UUID
 
 from app.agents.advisor_agent import AdvisorAgent
 from app.agents.base_agent import BaseAgent
@@ -18,6 +19,7 @@ from app.dtos.request_context import RequestContext
 from app.enums.stream_event_type import StreamEventType
 from app.dtos.agents.agent_response import AgentResponse
 from app.enums.workflow import WorkflowType
+from app.investment.workflows.models.delegation import Delegation
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.services.conversation_service import ConversationService
@@ -207,7 +209,39 @@ class Orchestrator:
         workflow_interrupt = None
 
         async for event in stream:
+
+            # -----------------------------------------------------
+            # Workflow delegation
+            # -----------------------------------------------------
+
+            if event.type == StreamEventType.WORKFLOW_DELEGATION.value:
+
+                delegation = event.workflow_delegation
+
+                await self._handle_delegation(
+                    conversation_id=conversation.id,
+                    delegation=delegation,
+                )
+
+                # Current workflow is finished.
+                #
+                # Start the delegated workflow immediately.
+                # The frontend does not need to know about the
+                # internal delegation event.
+                async for delegated_event in (
+                    self._stream_delegated_workflow(
+                        conversation=conversation,
+                        request=request,
+                        delegation=delegation,
+                        trace_id=trace_id,
+                    )
+                ):
+                    yield delegated_event
+
+                return
+
             yield event
+
 
             if event.type == StreamEventType.COMPLETED.value:
                 stream_response = event.response
@@ -313,7 +347,70 @@ class Orchestrator:
         workflow = WorkflowType(conversation.workflow)
         agent_type = self._workflow_agent_mapping[workflow]
         return self._agents[agent_type]
+
+    async def _handle_delegation(
+    self,
+    conversation_id: UUID,
+    delegation: Delegation,
+    ) -> None:
+
+        if not delegation:
+            raise ValueError("Delegation is required.")
+
+        await self.conversation_service.update_workflow(
+            conversation_id=conversation_id,
+            workflow=delegation.target.value,
+        )
+
+    def _get_delegated_agent(
+    self,
+    workflow: WorkflowType,
+    ) -> BaseAgent:
+
+        if workflow == WorkflowType.ADVISOR:
+            return self._get_agent(
+                AgentType.ADVISOR,
+            )
+
+        if workflow == WorkflowType.INVESTMENT_PURCHASE:
+            return self._get_agent(
+                AgentType.INVESTMENT,
+            )
+
+        raise ValueError(
+            f"Unsupported delegation target: {workflow}"
+        )
     
+    async def _stream_delegated_workflow(
+        self,
+        conversation: Conversation,
+        request: RequestContext,
+        delegation: Delegation,
+        trace_id: str,
+    ) -> AsyncIterator[AgentStreamEvent]:
+
+        target_agent = self._get_delegated_agent(delegation.target)
+
+        history = (await self.conversation_service.get_recent_context(conversation.id))
+        delegated_request = replace(
+            request,
+            query=delegation.payload["query"],
+            workflow_resume=None,
+            delegation=delegation,
+        )
+
+        advisor_state = target_agent.create_state(
+            request=delegated_request,
+            history=history,
+            trace_id=trace_id,
+        )
+
+        # ---------------------------------------------------------
+        # Start a NEW Advisor stream
+        # ---------------------------------------------------------
+        async for event in target_agent.stream(advisor_state):
+            yield event
+
     # async def stream(self, request: RequestContext) -> AsyncIterator[AgentStreamEvent]:
     #     trace_id = LangfuseHelper.get_trace_id()
 

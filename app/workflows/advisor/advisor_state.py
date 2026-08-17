@@ -19,6 +19,7 @@ from app.compliance.response.streaming.stream_state import StreamState
 from app.dtos.llm.llm_response import LLMResponse
 from app.dtos.request_context import RequestContext
 from app.dtos.workflow.tool_execution_result import ToolExecutionResult
+from app.investment.workflows.models.delegation import Delegation
 from app.mapper.planner_result_mapper import PlannerResultMapper
 from app.mapper.workflow_execution_mapper import WorkflowExecutionMapper
 from app.schemas.conversation.cache_message import CacheMessage
@@ -39,6 +40,8 @@ class AdvisorState:
     history: list[CacheMessage] = field(default_factory=list)
 
     trace_id: str | None = None
+
+    delegation: Delegation | None = None
 
     guardrail_result: GuardRailResult | None = None
     

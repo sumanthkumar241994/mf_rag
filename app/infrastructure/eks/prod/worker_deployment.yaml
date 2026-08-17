@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mf-worker
+  namespace: mutual-fund
+  labels:
+    app: mf-worker
+    app.kubernetes.io/name: mf-worker
+    app.kubernetes.io/part-of: mutual-fund-platform
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: mf-worker
+
+  template:
+    metadata:
+      labels:
+        app: mf-worker
+        app.kubernetes.io/name: mf-worker
+        app.kubernetes.io/part-of: mutual-fund-platform
+
+    spec:
+
+      nodeSelector:
+        workload: worker
+
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: worker
+          effect: NoSchedule
+
+      containers:
+        - name: worker
+
+          image: 526484109177.dkr.ecr.ap-south-1.amazonaws.com/mf-worker:1.0.0
+
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+
+            - name: AWS_REGION
+              value: "ap-south-1"
+
+            - name: REDIS_HOST
+              value: "master.mfcache.hbxp3k.aps1.cache.amazonaws.com"
+
+            - name: REDIS_PORT
+              value: "6379"
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+
+      terminationGracePeriodSeconds: 30

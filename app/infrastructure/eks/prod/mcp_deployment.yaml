@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mf-mcp
+  namespace: mutual-fund
+  labels:
+    app: mf-mcp
+    app.kubernetes.io/name: mf-mcp
+    app.kubernetes.io/part-of: mutual-fund-platform
+spec:
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: mf-mcp
+
+  template:
+    metadata:
+      labels:
+        app: mf-mcp
+        app.kubernetes.io/name: mf-mcp
+        app.kubernetes.io/part-of: mutual-fund-platform
+
+    spec:
+
+      nodeSelector:
+        workload: main
+
+      containers:
+        - name: mcp
+
+          image: 526484109177.dkr.ecr.ap-south-1.amazonaws.com/mf-mcp:1.0.0
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+
+            - name: AWS_REGION
+              value: "ap-south-1"
+
+            - name: REDIS_HOST
+              value: "master.mfcache.hbxp3k.aps1.cache.amazonaws.com"
+
+            - name: REDIS_PORT
+              value: "6379"
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+
+      terminationGracePeriodSeconds: 30
