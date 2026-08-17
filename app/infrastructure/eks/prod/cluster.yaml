@@ -24,6 +24,9 @@ managedNodeGroups:
     maxSize: 3
     privateNetworking: true
 
+    volumeType: gp3
+    volumeSize: 30
+
     labels:
       workload: main
 
@@ -38,6 +41,9 @@ managedNodeGroups:
     desiredCapacity: 1
     maxSize: 2
     privateNetworking: true
+
+    volumeType: gp3
+    volumeSize: 30
 
     labels:
       workload: worker
